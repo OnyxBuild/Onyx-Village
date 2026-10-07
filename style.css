@@ -1,0 +1,26 @@
+* { margin: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: radial-gradient(circle at 50% 40%, #1d1b3a 0%, #0a0914 70%);
+  font-family: "Press Start 2P", monospace;
+}
+
+.frame {
+  padding: 10px;
+  border-radius: 18px;
+  background: #15132b;
+  box-shadow: 0 0 0 3px #3a3670, 0 0 70px rgba(110, 90, 255, .35), 0 30px 60px rgba(0, 0, 0, .6);
+}
+
+canvas {
+  display: block;
+  width: min(92vw, 150vh * .88);
+  aspect-ratio: 3 / 2;
+  border-radius: 8px;
+  image-rendering: pixelated;
+  background: #000;
+}
+
+.keys { color: #6f6ca8; font-size: 10px; letter-spacing: 1px; text-align: center; padding: 0 12px; }
