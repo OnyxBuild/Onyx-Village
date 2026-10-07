@@ -10,7 +10,7 @@ Regarde l'historique des commits pour suivre la construction du jeu depuis le d�
 | # | Épisode | Statut |
 |---|---------|--------|
 | 1 | Le menu d'accueil | fait |
-| 2 | Le sol du village : herbe, rivière, fleurs | bientôt |
+| 2 | Le sol du village : herbe, rivière, fleurs | fait |
 | 3 | La maison du dev | bientôt |
 | 4 | Le labo OnyxBuild | bientôt |
 

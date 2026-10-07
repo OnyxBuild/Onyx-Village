@@ -1,10 +1,11 @@
-// ===== ONYX VILLAGE - Épisode 1 : le menu d'accueil =====
-// Un ciel étoilé dessiné par le code, avec le titre du jeu par-dessus.
+// ===== ONYX VILLAGE - Épisode 2 : le sol du village =====
+// Après l'écran d'accueil, le ciel laisse place au décor : herbe, rivière, sentiers, buissons et fleurs.
+// Tout est dessiné par le code, une seule fois, puis la "caméra" se balade dessus.
 
 const display = document.getElementById("display");
 const ctx = display.getContext("2d");
-const [view, vctx] = canvas(VIEW_W, VIEW_H);
-let time = 0, started = false;
+const [view, vctx] = canvas(VIEW_W + 1, VIEW_H + 1);                  // une case de marge pour les déplacements fins de la caméra
+let time = 0, started = false, startedAt = 0, titleAlpha = 1, worldAlpha = 0;
 
 // ---------- le ciel : un dégradé en bandes, des étoiles et la lune ----------
 const SKY = ["#0a0820", "#0d0b2a", "#120f36", "#18134a", "#201a5c", "#2a2270", "#342a82"];
@@ -16,14 +17,8 @@ function disc(x, cx, cy, radius, color) {
   for (let y = -radius; y <= radius; y++) for (let px = -radius; px <= radius; px++) if (Math.hypot(px, y) <= radius) rect(x, color, cx + px, cy + y, 1, 1);
 }
 
-function update() {
-  time++;
-  if (!shooting && time % 300 === 120) shooting = { x: 30 + r() * 90, y: 8 + r() * 30, life: 40 };
-  else if (shooting) { shooting.x += 3; shooting.y += 1.4; if (--shooting.life <= 0) shooting = null; }
-}
-
-function drawScene() {
-  SKY.forEach((color, i) => rect(vctx, color, 0, Math.round(i * VIEW_H / SKY.length), VIEW_W, Math.ceil(VIEW_H / SKY.length) + 1));
+function drawSky() {
+  SKY.forEach((color, i) => rect(vctx, color, 0, Math.round(i * VIEW_H / SKY.length), VIEW_W + 1, Math.ceil(VIEW_H / SKY.length) + 1));
 
   for (const s of stars) {                                              // les étoiles scintillent chacune à leur rythme
     if (Math.sin(time / 20 + s.phase) < -0.3) continue;
@@ -38,8 +33,153 @@ function drawScene() {
   if (shooting) for (let k = 0; k < 9; k++) rect(vctx, `rgba(255,255,255,${1 - k / 9})`, Math.round(shooting.x - k * 3), Math.round(shooting.y - k * 1.4), 2, 1);
 }
 
+// ---------- Épisode 2 : la carte du village, 32 x 24 cases de 16 pixels ----------
+const TILE = 16, COLS = 32, ROWS = 24;
+const GRASS = 0, TALL = 1, PATH = 2, WATER = 3, TREE = 4, FLOWER = 5, BUSH = 6, ROCK = 7, SAND = 8, STONES = 9;
+
+const map = Array.from({ length: ROWS }, () => Array(COLS).fill(GRASS));
+const fill = (x1, y1, x2, y2, v) => { for (let y = y1; y <= y2; y++) for (let x = x1; x <= x2; x++) map[y][x] = v; };
+const river = (y) => Math.round(15 + 5 * Math.sin(y / 3.4));                              // la rivière serpente du nord au sud
+
+(function buildMap() {
+  const r = random(21);
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (x < 2 || y < 2 || x >= 30 || y >= 22) map[y][x] = TREE;                          // forêt autour
+    else if ((x < 4 || y < 4 || x >= 28 || y >= 20) && r() < 0.35) map[y][x] = TREE;
+  }
+  fill(4, 5, 9, 9, TALL); fill(24, 4, 27, 8, TALL);                                      // herbes hautes
+  fill(21, 13, 28, 19, SAND); fill(22, 14, 27, 18, WATER);                               // l'étang et sa plage
+  for (const [x, y] of [[21, 13], [28, 13], [21, 19], [28, 19]]) map[y][x] = GRASS;      // coins arrondis
+  for (const [x, y] of [[22, 14], [27, 14], [22, 18], [27, 18]]) map[y][x] = SAND;
+  for (let y = 3; y < 22; y++) fill(river(y) - 5, y, river(y) - 4, y, PATH);             // un sentier le long de chaque rive
+  for (let y = 9; y < 13; y++) fill(river(y) + 5, y, river(y) + 6, y, PATH);
+  fill(17, 13, 20, 13, PATH);
+  for (let y = 0; y < ROWS; y++) fill(river(y), y, river(y) + 1, y, WATER);              // la rivière
+  fill(river(11) - 3, 11, river(11) - 1, 11, PATH); fill(river(11) + 2, 11, river(11) + 4, 11, PATH);
+  map[11][river(11)] = STONES; map[11][river(11) + 1] = STONES;                          // un gué de pierres plates
+  for (let y = 3; y < 21; y++) for (let x = 4; x < 28; x++) {
+    if (map[y][x] !== GRASS) continue;
+    const meadow = [[8, 12], [19, 7], [24, 11], [6, 18]].some(([mx, my]) => Math.hypot(x - mx, y - my) < 3.2);   // des prairies fleuries
+    const f = meadow ? 0.5 : 0.05, roll = r();
+    if (roll < f) map[y][x] = FLOWER;
+    else if (roll < f + 0.06) map[y][x] = BUSH;
+    else if (roll < f + 0.09) map[y][x] = TREE;
+    else if (roll < f + 0.1) map[y][x] = ROCK;
+  }
+})();
+
+// ---------- les tuiles ----------
+function grassTile(seed) {
+  const [c, x] = canvas(16, 16), r = random(seed);
+  rect(x, "#6cc058", 0, 0, 16, 16);
+  for (let i = 0; i < 16; i++) rect(x, "#5aab49", (r() * 15) | 0, (r() * 14) | 0, 1, 2);
+  for (let i = 0; i < 7; i++) rect(x, "#86d46e", (r() * 14) | 0, (r() * 15) | 0, 2, 1);
+  return c;
+}
+const GRASS_TILES = [11, 22, 33].map(grassTile);
+
+function drawTile(x, id, tx, ty) {
+  const px = tx * TILE, py = ty * TILE, r = random(tx * 31 + ty * 17);
+  x.drawImage(GRASS_TILES[(tx * 7 + ty * 13) % 3], px, py);                 // toutes les cases ont de l'herbe dessous
+
+  if (id === PATH || id === SAND) {
+    rect(x, id === PATH ? "#e6cd8c" : "#f0e0a8", px, py, 16, 16);
+    for (let i = 0; i < 12; i++) rect(x, id === PATH ? "#d4b66e" : "#e0cd90", px + ((r() * 15) | 0), py + ((r() * 15) | 0), 2, 1);
+  } else if (id === WATER || id === STONES) {
+    rect(x, "#3f8ae8", px, py, 16, 16);
+    for (const [row, off] of [[2, 0], [7, 6], [12, 3]]) { rect(x, "#8cc4ff", px + off, py + row, 5, 1); rect(x, "#2f6fd0", px + ((off + 7) % 15), py + row + 2, 3, 1); }
+    if (id === STONES) for (const [sx, sy, w] of [[2, 3, 6], [8, 9, 6]]) {          // deux pierres plates pour traverser
+      rect(x, "rgba(0,0,0,.25)", px + sx, py + sy + 5, w + 1, 2);
+      rect(x, "#8c8fa3", px + sx, py + sy, w, 5); rect(x, "#b4b7c9", px + sx, py + sy, w, 2); rect(x, "#6c6f84", px + sx, py + sy + 4, w, 1);
+    }
+  } else if (id === TALL) {
+    for (const [cx, cy] of [[4, 4], [12, 4], [4, 12], [12, 12], [8, 8]]) {
+      rect(x, "#2c8a38", px + cx - 3, py + cy + 1, 7, 3);
+      rect(x, "#3fae4a", px + cx - 2, py + cy - 2, 1, 4); rect(x, "#59cf62", px + cx, py + cy - 3, 1, 5); rect(x, "#3fae4a", px + cx + 2, py + cy - 2, 1, 4);
+    }
+  } else if (id === FLOWER) {
+    for (const [fx, fy, col] of [[3, 4, "#ff5a7a"], [10, 3, "#ffe14a"], [7, 10, "#ffffff"], [13, 11, "#ff5a7a"]]) {
+      rect(x, "#3a9a3a", px + fx, py + fy + 2, 1, 3);
+      rect(x, col, px + fx - 1, py + fy, 3, 1); rect(x, col, px + fx, py + fy - 1, 1, 3); rect(x, "#ffd54a", px + fx, py + fy, 1, 1);
+    }
+  } else if (id === BUSH) {
+    rect(x, "rgba(0,0,0,.2)", px + 2, py + 12, 12, 3);
+    for (let yy = 4; yy < 14; yy++) for (let xx = 1; xx < 15; xx++) {
+      const d = Math.hypot((xx - 7.5) / 7, (yy - 9) / 5);
+      if (d <= 1) rect(x, d > 0.85 ? "#1f6b2c" : (xx + yy < 14 ? "#4cc15a" : "#2f9a3e"), px + xx, py + yy, 1, 1);
+    }
+    for (const [bx, by] of [[4, 8], [9, 6], [11, 10], [6, 11]]) rect(x, "#e8445a", px + bx, py + by, 2, 2);   // des baies rouges
+  } else if (id === ROCK) {
+    rect(x, "rgba(0,0,0,.2)", px + 3, py + 12, 10, 3);
+    rect(x, "#8c8fa3", px + 3, py + 7, 10, 6); rect(x, "#a9acc0", px + 4, py + 6, 7, 3); rect(x, "#6c6f84", px + 3, py + 11, 10, 2); rect(x, "#c9ccdc", px + 5, py + 7, 3, 1);
+  } else if (id === TREE) {
+    rect(x, "rgba(0,0,0,.22)", px + 2, py + 12, 12, 3);
+    rect(x, "#6b3f1d", px + 6, py + 11, 4, 5);
+    for (let yy = 0; yy < 14; yy++) for (let xx = 0; xx < 16; xx++) {
+      const d = Math.hypot(xx - 7.5, yy - 6.5);
+      if (d <= 7.4) rect(x, d > 6.3 ? "#1b5e20" : (xx + yy < 10 && d < 5 ? "#6fcf6a" : (xx + yy < 14 ? "#3fa44a" : "#2e8b3a")), px + xx, py + yy, 1, 1);
+    }
+  }
+
+  // un liseré foncé là où le chemin, le sable ou l'eau touchent l'herbe
+  const at = (dx, dy) => map[ty + dy]?.[tx + dx];
+  const grassy = (n) => [GRASS, TALL, FLOWER, BUSH, ROCK].includes(n);
+  const edge = id === PATH ? ["#c9ab63", grassy] : id === WATER ? ["#b4deff", (n) => n !== WATER && n !== STONES] : id === SAND ? ["#d8c58a", (n) => grassy(n) || n === TREE] : null;
+  if (edge) {
+    if (edge[1](at(0, -1))) rect(x, edge[0], px, py, 16, 1);
+    if (edge[1](at(0, 1))) rect(x, edge[0], px, py + 15, 16, 1);
+    if (edge[1](at(-1, 0))) rect(x, edge[0], px, py, 1, 16);
+    if (edge[1](at(1, 0))) rect(x, edge[0], px + 15, py, 1, 16);
+  }
+}
+
+// ---------- on dessine tout le décor une seule fois ----------
+const WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
+const [world, wctx] = canvas(WORLD_W, WORLD_H);
+for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) drawTile(wctx, map[ty][tx], tx, ty);
+
+// ---------- ce qui bouge : des papillons ----------
+const butterflies = Array.from({ length: 6 }, (_, i) => ({ x: 120 + i * 55, y: 110 + (i % 3) * 70, a: i * 2, color: ["#ff8fc0", "#ffe14a", "#8fd0ff", "#ffffff"][i % 4] }));
+const cam = { x: 36, y: 32 };
+
+function update() {
+  time++;
+  if (!shooting && time % 300 === 120) shooting = { x: 30 + r() * 90, y: 8 + r() * 30, life: 40 };
+  else if (shooting) { shooting.x += 3; shooting.y += 1.4; if (--shooting.life <= 0) shooting = null; }
+
+  for (const b of butterflies) { b.a += 0.03; b.x += Math.cos(b.a * 1.3) * 0.7; b.y += Math.sin(b.a * 1.9) * 0.5; }
+  if (!started) return;
+  titleAlpha = Math.max(0, titleAlpha - 1 / 40);                          // le titre s'efface...
+  worldAlpha = Math.min(1, worldAlpha + 1 / 80);                          // ...et le décor apparaît
+  const t = time - startedAt;                                             // la caméra glisse doucement, en partant au ralenti
+  cam.x = Math.round((136 - 100 * Math.cos(t / 300)) * 4) / 4;            // arrondie au quart de pixel : le mouvement reste fluide
+  cam.y = Math.round((112 - 80 * Math.cos(t / 230)) * 4) / 4;
+}
+
+function drawWorld() {
+  const cx = Math.floor(cam.x), cy = Math.floor(cam.y);
+  vctx.drawImage(world, -cx, -cy);
+
+  for (let ty = Math.floor(cy / TILE); ty <= (cy + VIEW_H) / TILE; ty++) for (let tx = Math.floor(cx / TILE); tx <= (cx + VIEW_W) / TILE; tx++) {
+    if (map[ty]?.[tx] !== WATER) continue;                                // l'eau scintille
+    if (((time >> 4) + tx * 3 + ty * 5) % 4 === 0) rect(vctx, "#d6ecff", tx * TILE + 3 + ((time >> 3) % 6) - cx, ty * TILE + 4 + ((tx + ty) % 3) * 4 - cy, 4, 1);
+  }
+  for (const b of butterflies) {
+    const wing = Math.sin(time * 0.4 + b.a * 9) > 0 ? 3 : 1, bx = Math.round(b.x - cx), by = Math.round(b.y - cy);
+    rect(vctx, b.color, bx - wing, by, wing, 2); rect(vctx, b.color, bx + 1, by, wing, 2); rect(vctx, "#333333", bx, by, 1, 2);
+  }
+}
+
+function drawScene() {
+  if (worldAlpha < 1) drawSky();
+  if (!started) return;
+  vctx.globalAlpha = worldAlpha; drawWorld(); vctx.globalAlpha = 1;
+}
+
 // ---------- le menu ----------
 function drawTitle() {
+  if (titleAlpha <= 0) return;
+  ctx.globalAlpha = titleAlpha;
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
 
   ctx.font = FONT(78); ctx.fillStyle = "#101030"; ctx.fillText("ONYX", 486, 206);
@@ -49,16 +189,17 @@ function drawTitle() {
 
   const blink = ((time / 30) | 0) % 2 === 0;                            // clignote deux fois par seconde
   ctx.font = FONT(22); ctx.fillStyle = "#ffffff";
-  if (blink) ctx.fillText(started ? "LA SUITE BIENTOT..." : "APPUIE SUR ENTREE", 480, 430);
+  if (blink && !started) ctx.fillText("APPUIE SUR ENTREE", 480, 430);
 
   ctx.font = FONT(12); ctx.fillStyle = "#b8b4e8"; ctx.fillText("une aventure par ONYXBUILD", 480, 560);
-  ctx.textAlign = "left";
+  ctx.textAlign = "left"; ctx.globalAlpha = 1;
 }
 
 function draw() {
   drawScene();
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(view, 0, 0, 960, 640);                                  // on agrandit x4
+  const fx = started ? cam.x - Math.floor(cam.x) : 0, fy = started ? cam.y - Math.floor(cam.y) : 0;
+  ctx.drawImage(view, -fx * 4, -fy * 4, (VIEW_W + 1) * 4, (VIEW_H + 1) * 4);   // on agrandit x4, décalé de la partie fine du mouvement
   drawTitle();
 }
 
@@ -68,7 +209,7 @@ addEventListener("keydown", (e) => {
   if (e.code === "KeyM") return Sound.toggle();
   if (["Enter", "Space"].includes(e.code) && !started) {
     e.preventDefault();
-    started = true;
+    started = true; startedAt = time;
     Sound.init();                                                       // la musique démarre ici
     Sound.select();
   }
