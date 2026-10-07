@@ -13,11 +13,11 @@ Regarde l'historique des commits pour suivre la construction du jeu depuis le d�
 | 2 | Le sol du village : herbe, rivière, fleurs | fait |
 | 3 | Le héros : sa création et ses déplacements | fait |
 | 4 | La maison du dev : dehors et dedans | fait |
-| 5 | Le labo OnyxBuild | bientôt |
+| 5 | Le labo OnyxBuild : trois salles, un prof et un robot | fait |
 
 ## Lancer le jeu
 
-Aucune installation : ouvre simplement `index.html` dans ton navigateur, puis appuie sur **Entrée** et déplace-toi avec les **flèches** (ou ZQSD). Pour entrer chez le dev, avance contre sa porte.
+Aucune installation : ouvre simplement `index.html` dans ton navigateur, puis appuie sur **Entrée** et déplace-toi avec les **flèches** (ou ZQSD). Avance contre une porte pour entrer, et appuie sur **Entrée** devant quelqu'un pour lui parler.
 
 ## Fait par [OnyxBuild](https://github.com/OnyxBuild)
 

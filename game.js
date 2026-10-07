@@ -1,6 +1,6 @@
-// ===== ONYX VILLAGE - Épisode 4 : la maison du dev =====
-// Une maison toute simple dehors, un panneau qui annonce son nom, et on peut y entrer :
-// dedans, la chambre du dev avec son lit, son ordinateur, sa bibliothèque et son tapis.
+// ===== ONYX VILLAGE - Épisode 5 : le labo OnyxBuild =====
+// À l'ouest du village, le labo : un bâtiment moderne avec trois salles reliées par des portes
+// (l'accueil et son professeur, la salle des PC, la salle des serveurs). Et on peut parler aux habitants.
 
 const display = document.getElementById("display");
 const ctx = display.getContext("2d");
@@ -35,7 +35,7 @@ function drawSky() {
 
 // ---------- Épisode 2 : la carte du village, 32 x 24 cases de 16 pixels ----------
 const TILE = 16, COLS = 32, ROWS = 24;
-const GRASS = 0, TALL = 1, PATH = 2, WATER = 3, TREE = 4, FLOWER = 5, BUSH = 6, ROCK = 7, SAND = 8, STONES = 9, HOUSE = 10, DOOR = 11, SIGN = 12;
+const GRASS = 0, TALL = 1, PATH = 2, WATER = 3, TREE = 4, FLOWER = 5, BUSH = 6, ROCK = 7, SAND = 8, STONES = 9, HOUSE = 10, DOOR = 11, SIGN = 12, LDOOR = 13, LSIGN = 14;
 
 const map = Array.from({ length: ROWS }, () => Array(COLS).fill(GRASS));
 const fill = (x1, y1, x2, y2, v) => { for (let y = y1; y <= y2; y++) for (let x = x1; x <= x2; x++) map[y][x] = v; };
@@ -72,7 +72,22 @@ const river = (y) => Math.round(15 + 5 * Math.sin(y / 3.4));                    
   for (const x of [13, 15, 17, 18]) map[19][x] = FLOWER;                                  // le jardin devant
   map[18][14] = SIGN;                                                                     // le panneau "DEV" à côté de la porte
   map[17][12] = TREE;                                                                     // un arbre derrière lequel il fait bon lire
+  fill(9, 8, 9, 9, GRASS);                                                                // Épisode 5 : on dégage la place du labo...
+  fill(9, 4, 13, 7, HOUSE); map[7][11] = LDOOR;                                           // ...le labo et sa porte
+  fill(11, 8, 13, 8, PATH);                                                               // le sentier qui rejoint celui du village
+  map[8][10] = LSIGN;                                                                     // le panneau "LAB" à côté de la porte
 })();
+
+// ---------- une police minuscule (3 x 5 pixels) pour les panneaux et les écrans ----------
+const FONT3 = {
+  A: "010101111101101", B: "110101110101110", C: "011100100100011", D: "110101101101110", E: "111100110100111", F: "111100110100100",
+  G: "011100101101011", H: "101101111101101", I: "111010010010111", K: "101101110101101", L: "100100100100111", M: "101111111101101",
+  N: "111101101101101", O: "010101101101010", P: "110101110100100", R: "110101110101101", S: "011100010001110", T: "111010010010010",
+  U: "101101101101111", V: "101101101101010", X: "101101010101101", Y: "101101010010010", " ": "000000000000000",
+};
+function pixelText(x, text, px, py, color) {
+  [...text].forEach((ch, i) => [...FONT3[ch]].forEach((on, k) => on === "1" && rect(x, color, px + i * 4 + (k % 3), py + Math.floor(k / 3), 1, 1)));
+}
 
 // ---------- les tuiles ----------
 function grassTile(seed) {
@@ -118,11 +133,10 @@ function drawTile(x, id, tx, ty) {
   } else if (id === ROCK) {
     rect(x, "rgba(0,0,0,.2)", px + 3, py + 12, 10, 3);
     rect(x, "#8c8fa3", px + 3, py + 7, 10, 6); rect(x, "#a9acc0", px + 4, py + 6, 7, 3); rect(x, "#6c6f84", px + 3, py + 11, 10, 2); rect(x, "#c9ccdc", px + 5, py + 7, 3, 1);
-  } else if (id === SIGN) {
-    const glyphs = { D: ["110", "101", "101", "101", "110"], E: ["111", "100", "110", "100", "111"], V: ["101", "101", "101", "101", "010"] };
+  } else if (id === SIGN || id === LSIGN) {
     rect(x, "rgba(0,0,0,.2)", px + 3, py + 13, 10, 2); rect(x, "#7a4a22", px + 7, py + 9, 2, 6);            // l'ombre et le poteau
     rect(x, "#5a3414", px, py + 1, 16, 10); rect(x, "#d9a85c", px + 1, py + 2, 14, 8);                      // le panneau de bois
-    for (const [i, ch] of [..."DEV"].entries()) glyphs[ch].forEach((row, gy) => [...row].forEach((on, gx) => on === "1" && rect(x, "#5a3414", px + 2 + i * 4 + gx, py + 3 + gy, 1, 1)));
+    pixelText(x, id === SIGN ? "DEV" : "LAB", px + 2, py + 3, "#5a3414");
   } else if (id === TREE) {
     rect(x, "rgba(0,0,0,.22)", px + 2, py + 12, 12, 3);
     rect(x, "#6b3f1d", px + 6, py + 11, 4, 5);
@@ -163,6 +177,24 @@ function drawHouse(x, hx, hy) {
   rect(x, "#bdb3a0", hx + 29, hy + 62, 22, 2);                                            // la marche
 }
 
+// ---------- le labo OnyxBuild : un bâtiment moderne, 80 x 64 pixels ----------
+const LAB_X = 9 * TILE, LAB_Y = 4 * TILE;
+
+function drawLab(x, hx, hy) {
+  const navy = ["#161b45", "#232a6b", "#34408f"];
+  rect(x, "rgba(0,0,0,.22)", hx + 2, hy + 61, 80, 4);                                     // l'ombre portée
+  rect(x, "#e8ecf8", hx, hy + 22, 80, 42); rect(x, "#cfd6ee", hx, hy + 22, 80, 3);       // les murs blancs
+  rect(x, "#8f98c0", hx, hy + 58, 80, 6);                                                 // le soubassement métallique
+  rect(x, navy[1], hx - 2, hy + 6, 84, 17); rect(x, navy[2], hx - 2, hy + 6, 84, 2); rect(x, navy[0], hx - 2, hy + 20, 84, 3);   // le toit plat
+  rect(x, "#00e5ff", hx - 2, hy + 23, 84, 1);                                             // un liseré néon
+  rect(x, navy[1], hx + 14, hy - 2, 52, 9); rect(x, navy[2], hx + 14, hy - 2, 52, 2); rect(x, navy[0], hx + 14, hy + 5, 52, 2);   // le bloc technique du toit
+  rect(x, "#aab4ec", hx + 70, hy - 8, 1, 14); rect(x, "#dfe6ff", hx + 66, hy - 10, 9, 1); rect(x, "#aab4ec", hx + 67, hy - 9, 7, 1); rect(x, "#00e5ff", hx + 70, hy - 13, 1, 3);   // la parabole
+  disc(x, hx + 40, hy + 34, 8, navy[1]); disc(x, hx + 40, hy + 34, 6, "#f2f3f5"); disc(x, hx + 40, hy + 34, 3, navy[1]);   // le logo OnyxBuild
+  for (const wx of [6, 58]) { rect(x, navy[1], hx + wx, hy + 36, 16, 14); rect(x, "#8fe9ff", hx + wx + 2, hy + 38, 12, 10); rect(x, "#d6f6ff", hx + wx + 2, hy + 38, 4, 10); }   // les baies vitrées
+  rect(x, navy[1], hx + 30, hy + 44, 20, 18); rect(x, "#8fe9ff", hx + 32, hy + 46, 7, 16); rect(x, "#8fe9ff", hx + 41, hy + 46, 7, 16);   // la porte coulissante
+  rect(x, "#d6f6ff", hx + 32, hy + 46, 2, 16); rect(x, "#d6f6ff", hx + 41, hy + 46, 2, 16); rect(x, "#aab0c8", hx + 28, hy + 62, 24, 2);
+}
+
 // ---------- l'intérieur de la maison : une pièce de 12 x 9 cases (192 x 144 pixels) ----------
 // #  mur    B  lit    D  bureau    T  tour de PC    C  chaise    L  lampe    P  plante    r  tapis    m  paillasson    E  sortie    .  parquet
 const ROOM = [
@@ -177,7 +209,7 @@ const ROOM = [
   "#####E######",
 ];
 const ROOM_SOLID = new Set("#BDTCLP");
-const ROOM_X = (VIEW_W - 192) / 2, ROOM_Y = (VIEW_H - 144) / 2;                         // la pièce est centrée à l'écran
+
 
 function drawRoom(x) {
   rect(x, "#3b3c78", 0, 0, 192, 144);                                                     // le mur du fond : papier peint rayé et plinthe en bois
@@ -248,8 +280,8 @@ function drawRoom(x) {
 }
 
 // ce qui bouge dans la pièce : le code à l'écran, la vapeur du café, la tour du PC et les guirlandes
-function drawRoomLive() {
-  const o = (rx, ry, w, h, c) => rect(vctx, c, ROOM_X + rx, ROOM_Y + ry, w, h);
+function drawRoomLive(ox, oy) {
+  const o = (rx, ry, w, h, c) => rect(vctx, c, ox + rx, oy + ry, w, h);
   o(110, 11, 32, 16, "#14183f");
   const scroll = time >> 4;
   for (let i = 0; i < 7; i++) {
@@ -267,11 +299,202 @@ function drawRoomLive() {
   }
 }
 
+// ---------- le labo à l'intérieur : trois salles de 14 x 9 cases (224 x 144 pixels) ----------
+// #  mur    P  plante    H  table à hologramme    S  canapé    D  bureau    C  chaise    T  table    K  baie de serveurs    M  console    O  noyau IA
+// E  sortie    a b h  portes entre les salles    .  sol
+const HALL = [
+  "##############",
+  "##############",
+  "#P..........P#",
+  "#............#",
+  "#.....HH.....#",
+  "a.....HH.....b",
+  "#............#",
+  "#..SS....SS..#",
+  "######E#######",
+];
+const PCROOM = [
+  "##############",
+  "##############",
+  "#DD.DD.DD.DD.#",
+  "#CC.CC.CC.CC.#",
+  "#............h",
+  "#...TTTTTT...#",
+  "#............#",
+  "#P..........P#",
+  "##############",
+];
+const SERVERS = [
+  "##############",
+  "##############",
+  "#KKK..MM..KKK#",
+  "#............#",
+  "#.....OO.....#",
+  "h.....OO.....#",
+  "#............#",
+  "#............#",
+  "##############",
+];
+
+// le décor commun aux salles : mur bleu nuit avec un néon, plinthe, sol en carreaux
+function labShell(x, floorA, floorB, wall) {
+  rect(x, wall, 0, 0, 224, 144);
+  for (let i = 0; i < 224; i += 16) rect(x, "rgba(255,255,255,.05)", i, 0, 1, 26);
+  rect(x, "#00e5ff", 0, 22, 224, 1); rect(x, "rgba(0,229,255,.22)", 0, 23, 224, 4);
+  rect(x, "#8f98c0", 0, 28, 224, 4);
+  for (let ty = 2; ty < 8; ty++) for (let tx = 1; tx < 13; tx++) {
+    rect(x, (tx + ty) % 2 ? floorA : floorB, tx * 16, ty * 16, 16, 16);
+    rect(x, "rgba(0,0,0,.12)", tx * 16, ty * 16 + 15, 16, 1); rect(x, "rgba(0,0,0,.12)", tx * 16 + 15, ty * 16, 1, 16);
+  }
+  for (const [wx, wy, w, h] of [[0, 32, 16, 112], [208, 32, 16, 112], [0, 128, 224, 16]]) rect(x, wall, wx, wy, w, h);
+  rect(x, "rgba(0,0,0,.2)", 16, 32, 192, 4); rect(x, "rgba(0,0,0,.16)", 16, 32, 3, 96); rect(x, "rgba(0,0,0,.16)", 205, 32, 3, 96);
+}
+
+function labDoor(x, tx, ty, side) {                                                        // une porte vitrée dans le mur de gauche ou de droite
+  const px = tx * 16, py = ty * 16;
+  rect(x, "#0b0c1c", px, py - 2, 16, 20); rect(x, "#00e5ff", px, py - 2, 16, 1); rect(x, "#00e5ff", px, py + 17, 16, 1);
+  rect(x, "#8fe9ff", px + (side === "left" ? 0 : 8), py, 8, 16); rect(x, "#d6f6ff", px + (side === "left" ? 0 : 8), py, 2, 16);
+}
+
+function plantAt(x, px, py) {                                                              // une plante en pot sur la case (px, py)
+  rect(x, "rgba(0,0,0,.25)", px + 2, py + 13, 12, 3); rect(x, "#8a3f1d", px + 3, py + 5, 10, 2); rect(x, "#b0562d", px + 4, py + 6, 8, 8);
+  for (const [lx, ly, rr] of [[8, -2, 4], [3, 2, 3], [13, 2, 3], [8, 3, 3]]) { disc(x, px + lx, py + ly, rr, "#2e8b3a"); disc(x, px + lx - 1, py + ly - 1, rr - 1, "#59cf62"); }
+}
+
+function drawHall(x) {                                                                     // la salle d'accueil
+  labShell(x, "#dfe4f4", "#d0d7ee", "#1b2250");
+  labDoor(x, 0, 5, "left"); labDoor(x, 13, 5, "right");
+  rect(x, "#232a6b", 94, 126, 20, 18); rect(x, "#8fe9ff", 96, 128, 7, 16); rect(x, "#8fe9ff", 105, 128, 7, 16); rect(x, "#d6f6ff", 96, 128, 2, 16); rect(x, "#d6f6ff", 105, 128, 2, 16);   // la sortie
+  rect(x, "#c0392b", 98, 116, 12, 8); rect(x, "#e8604f", 99, 117, 10, 2);
+  rect(x, "#0b0c1c", 62, 3, 100, 21); rect(x, "#14183f", 64, 5, 96, 17);                  // le grand écran du mur : logo et nom du labo
+  disc(x, 76, 13, 6, "#6a70e0"); disc(x, 76, 13, 4, "#f2f3f5"); disc(x, 76, 13, 2, "#14183f");
+  pixelText(x, "ONYXBUILD", 88, 8, "#f2f3f5"); pixelText(x, "LABORATOIRE", 88, 15, "#00e5ff");
+  plantAt(x, 16, 32); plantAt(x, 192, 32);
+  rect(x, "rgba(0,0,0,.25)", 98, 92, 30, 4);                                              // la table à hologramme
+  rect(x, "#2f3a7a", 98, 78, 28, 16); rect(x, "#232a6b", 98, 88, 28, 6); rect(x, "#34408f", 96, 74, 32, 6); rect(x, "#00e5ff", 98, 74, 28, 1);
+  for (const sx of [48, 144]) {                                                           // les deux canapés
+    rect(x, "rgba(0,0,0,.2)", sx + 2, 126, 30, 3); rect(x, "#34408f", sx, 116, 32, 12); rect(x, "#4348b0", sx + 2, 111, 28, 8); rect(x, "#6a70e0", sx + 2, 111, 28, 2);
+    rect(x, "#ffd54a", sx + 4, 113, 6, 6); rect(x, "#ff7ab6", sx + 22, 113, 6, 6);
+  }
+}
+
+function drawPcRoom(x) {                                                                   // la salle des PC : quatre postes de travail et une table de réunion
+  labShell(x, "#dfe4f4", "#d0d7ee", "#1b2250");
+  labDoor(x, 13, 4, "right");
+  for (let i = 0; i < 4; i++) {
+    const dx = 16 + i * 48, [chair, chairLight] = [["#4348b0", "#6a70e0"], ["#12a4b8", "#4fd6e8"], ["#8a5cff", "#b79cff"], ["#c93a52", "#ff7a8e"]][i];
+    rect(x, "rgba(0,0,0,.2)", dx + 2, 47, 30, 3); rect(x, "#cfd6ee", dx, 40, 32, 8); rect(x, "#f2f4fb", dx, 32, 32, 8); rect(x, "#ffffff", dx, 32, 32, 1);   // le bureau blanc
+    rect(x, "#14151f", dx + 3, 11, 26, 18); rect(x, "#2a2a3a", dx + 14, 29, 4, 3); rect(x, "#2a2a3a", dx + 10, 31, 12, 2);                              // l'écran (son contenu bouge)
+    rect(x, "#dfe3f0", dx + 7, 34, 14, 3); rect(x, "#aab0c8", dx + 8, 35, 12, 1); rect(x, "#dfe3f0", dx + 24, 34, 3, 4);                                // clavier et souris
+    rect(x, "rgba(0,0,0,.2)", dx + 5, 60, 22, 3); rect(x, "#1a1a28", dx + 15, 57, 2, 4); rect(x, "#1a1a28", dx + 9, 60, 14, 2);                         // la chaise
+    rect(x, chair, dx + 8, 50, 16, 8); rect(x, chair, dx + 9, 42, 14, 9); rect(x, chairLight, dx + 9, 42, 14, 2);
+  }
+  for (const px of [51, 99, 147]) { rect(x, "#f4ecd8", px, 5, 10, 16); rect(x, "#14183f", px + 1, 6, 8, 14); }   // des posters entre les écrans
+  disc(x, 56, 12, 3, "#6a70e0"); disc(x, 56, 12, 1, "#14183f"); rect(x, "#59cf62", 103, 12, 2, 6); disc(x, 104, 11, 3, "#59cf62"); pixelText(x, "OB", 150, 11, "#00e5ff");
+  disc(x, 200, 14, 8, "#8f98c0"); disc(x, 200, 14, 7, "#f2f3f5");                          // l'horloge
+  rect(x, "rgba(0,0,0,.2)", 66, 94, 94, 4); rect(x, "#8f98c0", 66, 90, 92, 5); rect(x, "#f2f4fb", 64, 80, 96, 11); rect(x, "#ffffff", 64, 80, 96, 1);   // la table de réunion
+  for (const lx of [72, 104, 136]) { rect(x, "#aab4ec", lx, 74, 16, 10); rect(x, "#8f98c0", lx, 82, 16, 2); disc(x, lx + 8, 78, 2, "#f2f3f5"); }   // trois portables vus de dos
+  rect(x, "#f2f3f5", 124, 82, 5, 5); rect(x, "#6b3f1d", 125, 83, 3, 1); rect(x, "#f2f3f5", 92, 83, 5, 5); rect(x, "#6b3f1d", 93, 84, 3, 1);        // des tasses de café
+  plantAt(x, 16, 112); plantAt(x, 192, 112);                                              // et deux plantes
+}
+
+function drawServers(x) {                                                                  // la salle des serveurs : des baies, une console et le noyau IA
+  labShell(x, "#3a4170", "#343a66", "#14183f");
+  labDoor(x, 0, 5, "left");
+  for (const tx of [1, 2, 3, 10, 11, 12]) {
+    const px = tx * 16;
+    rect(x, "rgba(0,0,0,.25)", px + 1, 46, 15, 4); rect(x, "#0e0f1a", px, 6, 16, 42); rect(x, "#1c1e30", px + 1, 7, 14, 40);
+    for (let u = 0; u < 7; u++) { rect(x, "#2a2d48", px + 2, 9 + u * 5, 12, 4); rect(x, "#14151f", px + 2, 12 + u * 5, 12, 1); rect(x, "#3a3f6a", px + 4, 10 + u * 5, 5, 1); }
+  }
+  rect(x, "rgba(0,229,255,.3)", 24, 52, 1, 24); rect(x, "rgba(0,229,255,.3)", 24, 76, 70, 1); rect(x, "rgba(0,229,255,.3)", 200, 52, 1, 24); rect(x, "rgba(0,229,255,.3)", 130, 76, 70, 1);   // les câbles au sol
+  rect(x, "#0b0c1c", 78, 3, 68, 17); rect(x, "#14183f", 80, 5, 64, 13); pixelText(x, "SERVICES OK", 90, 9, "#59cf62");                           // l'écran d'état
+  rect(x, "rgba(0,0,0,.2)", 98, 47, 30, 3); rect(x, "#cfd6ee", 96, 40, 32, 8); rect(x, "#f2f4fb", 96, 32, 32, 8);                                   // la console
+  rect(x, "#14151f", 99, 20, 12, 12); rect(x, "#14151f", 113, 20, 12, 12); rect(x, "#2a2a3a", 105, 32, 2, 2); rect(x, "#2a2a3a", 119, 32, 2, 2);
+  rect(x, "rgba(0,0,0,.25)", 98, 92, 30, 4);                                              // le noyau IA : un cylindre de verre sur son socle
+  rect(x, "#2f3a7a", 98, 86, 28, 8); rect(x, "#34408f", 100, 84, 24, 4); rect(x, "#00e5ff", 100, 84, 24, 1);
+  rect(x, "rgba(143,233,255,.22)", 102, 54, 20, 30); rect(x, "rgba(214,246,255,.4)", 102, 54, 3, 30); rect(x, "#aab4ec", 100, 52, 24, 3);
+}
+
+// ce qui bouge dans l'accueil : le logo en hologramme au-dessus de la table
+function drawHallLive(ox, oy) {
+  const turn = Math.abs(Math.cos(time / 25)), cx = ox + 112, cy = oy + 58;
+  vctx.globalAlpha = 0.13;
+  for (let yy = 0; yy < 16; yy++) rect(vctx, "#00e5ff", cx - 3 - yy, cy + yy, 7 + yy * 2, 1);   // le faisceau
+  vctx.globalAlpha = 1;
+  for (let a = 0; a < 36; a++) {                                                          // l'anneau tourne comme une pièce de monnaie
+    const t = (a / 36) * Math.PI * 2;
+    rect(vctx, a % 2 ? "#00e5ff" : "#8fe9ff", Math.round(cx + Math.cos(t) * 9 * turn), Math.round(cy + Math.sin(t) * 9), 1, 1);
+  }
+  rect(vctx, "#ffffff", cx, cy - 1, 1, 3);
+  for (let k = 0; k < 3; k++) rect(vctx, "#8fe9ff", cx - 8 + ((time + k * 23) % 17), cy + 12 - ((time * 0.5 + k * 9) % 14), 1, 1);   // des étincelles
+}
+
+// ce qui bouge dans la salle des PC : le contenu des quatre écrans
+function drawPcLive(ox, oy) {
+  const o = (rx, ry, w, h, c) => rect(vctx, c, ox + rx, oy + ry, w, h);
+  for (let i = 0; i < 4; i++) {
+    const sx = 16 + i * 48 + 5, sy = 13, rnd = random((time >> 4) * 7 + i);
+    o(sx, sy, 22, 14, ["#14183f", "#f4f6ff", "#08140c", "#1b1f3f"][i]);
+    if (i === 0) for (let k = 0; k < 6; k++) o(sx + 1 + (rnd() < 0.4 ? 2 : 0), sy + 1 + k * 2, 3 + Math.floor(rnd() * 14), 1, ["#00e5ff", "#ff7ab6", "#ffd54a", "#9cf08a"][Math.floor(rnd() * 4)]);   // du code
+    if (i === 1) { o(sx + 1, sy + 1, 20, 2, "#4348b0"); o(sx + 2, sy + 4, 8, 7, "#ff7ab6"); o(sx + 11, sy + 4, 9, 3, "#00e5ff"); o(sx + 11, sy + 8, 9, 3, "#ffd54a"); if (time % 50 < 25) o(sx + 4, sy + 7, 1, 3, "#14183f"); }   // une maquette de site
+    if (i === 2) { for (let k = 0; k < 5; k++) o(sx + 1, sy + 1 + k * 2, 2 + Math.floor(rnd() * 12), 1, "#59cf62"); if (time % 40 < 20) o(sx + 1, sy + 11, 3, 1, "#d6ffd9"); }   // un terminal
+    if (i === 3) for (let k = 0; k < 6; k++) { const h = 2 + (((time >> 3) + k * 3) % 9); o(sx + 2 + k * 3, sy + 13 - h, 2, h, k % 2 ? "#00e5ff" : "#8a5cff"); }   // un tableau de bord
+  }
+  const t = time / 60;
+  o(200, 14, Math.round(Math.cos(t * 6) * 5) || 1, 1, "#14183f"); o(200, 14 + Math.round(Math.sin(t * 6) * 5), 1, 1, "#e8445a");   // l'aiguille de l'horloge
+}
+
+// ce qui bouge dans la salle des serveurs : les voyants, le noyau IA et les graphiques
+function drawServersLive(ox, oy) {
+  const o = (rx, ry, w, h, c) => rect(vctx, c, ox + rx, oy + ry, w, h);
+  [1, 2, 3, 10, 11, 12].forEach((tx, r) => { for (let u = 0; u < 7; u++) o(tx * 16 + 11, 10 + u * 5, 2, 1, ((time >> 3) + u * 3 + r * 5) % 5 ? "#59cf62" : ((time >> 3) % 2 ? "#ffd54a" : "#e8445a")); });
+  const pulse = 4 + Math.round(Math.sin(time / 12) * 1.5), hue = ["#8a5cff", "#00e5ff", "#ff7ab6"][(time >> 6) % 3];
+  vctx.globalAlpha = 0.25; disc(vctx, ox + 112, oy + 70, pulse + 5, hue); vctx.globalAlpha = 1;                    // le halo du noyau
+  disc(vctx, ox + 112, oy + 70, pulse, hue); disc(vctx, ox + 111, oy + 69, Math.max(1, pulse - 2), "#f2f3f5");
+  for (let k = 0; k < 4; k++) o(110 + ((k * 7 + (time >> 2)) % 5), 56 + ((time + k * 9) % 26), 1, 1, "#d6f6ff");   // des bulles dans le tube
+  for (let k = 0; k < 6; k++) { o(101 + k * 2, 30 - (2 + (((time >> 3) + k * 2) % 8)), 1, 2 + (((time >> 3) + k * 2) % 8), "#00e5ff"); o(115 + k * 2, 30 - (2 + (((time >> 3) + k * 5) % 8)), 1, 2 + (((time >> 3) + k * 5) % 8), "#ff7ab6"); }   // les graphiques de la console
+}
+
+// ---------- les lieux où l'on peut entrer ----------
+// plan : le dessin en lettres  ·  solid : les lettres infranchissables  ·  links : les portes vers d'autres salles  ·  out : la case devant la porte, dehors
+const placeImage = (w, h, draw) => { const [c, x] = canvas(w, h); draw(x); return c; };
+const PROF = { hair: "#e8e8f0", skin: "#f0c090", shirt: "#f4f4f8", light: "#8fd0f5", pants: "#3a3f6a", shoe: "#222222", glasses: "#2a2a3a" };
+const DEV = { hair: "#7a3b1d", skin: "#e8b08a", shirt: "#8a5cff", light: "#c4b5fd", pants: "#2f3f5f", shoe: "#222222", phones: "#f2f3f5" };
+const PLACES = {
+  home: { plan: ROOM, solid: new Set("#BDTCLP"), img: placeImage(192, 144, drawRoom), live: drawRoomLive, links: {}, npcs: [], start: [5, 7], out: [16, 18] },
+  hall: { title: "LABO ONYXBUILD", plan: HALL, solid: new Set("#PHS"), img: placeImage(224, 144, drawHall), live: drawHallLive, start: [6, 7], out: [11, 8],
+    links: { a: { to: "pc", at: [12, 4], dir: "left" }, b: { to: "servers", at: [1, 5], dir: "right" } },
+    npcs: [{ x: 4 * TILE, y: 4 * TILE - 2, dir: "right", p: PROF, name: "PROF", lines: ["Bienvenue au labo OnyxBuild !", "Ici, on crée des sites web, des automatisations et des agents IA.", "La salle des PC est à gauche. Les serveurs sont à droite !"] }] },
+  pc: { title: "SALLE DES PC", plan: PCROOM, solid: new Set("#DCTP"), img: placeImage(224, 144, drawPcRoom), live: drawPcLive,
+    links: { h: { to: "hall", at: [1, 5], dir: "right" } },
+    npcs: [{ x: 4.5 * TILE, y: 3 * TILE - 8, dir: "up", p: DEV, name: "DEV", lines: ["Chut... je lance un déploiement.", "Un site de plus en ligne en trois minutes. Un café ?"] }] },
+  servers: { title: "SALLE SERVEURS", plan: SERVERS, solid: new Set("#KMO"), img: placeImage(224, 144, drawServers), live: drawServersLive,
+    links: { h: { to: "hall", at: [12, 5], dir: "left" } },
+    npcs: [{ x: 9 * TILE, y: 4 * TILE - 2, dir: "left", kind: "robot", name: "NOVA", lines: ["BIP BOUP ! Je suis NOVA, l'agent IA du labo.", "Je réponds aux clients pendant que l'équipe dort."] }] },
+};
+for (const p of Object.values(PLACES)) { p.ox = Math.floor((VIEW_W - p.plan[0].length * TILE) / 2); p.oy = Math.floor((VIEW_H - p.plan.length * TILE) / 2); }   // chaque pièce est centrée à l'écran
+
+function drawRobot(x, px, py) {                                                            // NOVA, l'agent IA : un petit robot qui flotte
+  const bob = Math.round(Math.sin(time / 15)), blink = time % 120 < 6;
+  rect(x, "rgba(0,0,0,.28)", px + 3, py + 14, 10, 2);
+  rect(x, "#232a6b", px + 4, py + 12, 8, 2); rect(x, "#6a70e0", px + 5, py + 13, 6, 1);
+  rect(x, "#aab4ec", px + 2, py + 7 + bob, 2, 4); rect(x, "#aab4ec", px + 12, py + 7 + bob, 2, 4);
+  rect(x, "#cfd6ee", px + 4, py + 7 + bob, 8, 6); rect(x, "#aab4ec", px + 4, py + 11 + bob, 8, 2); rect(x, "#00e5ff", px + 7, py + 9 + bob, 2, 2);
+  rect(x, "#cfd6ee", px + 3, py + 1 + bob, 10, 7); rect(x, "#14183f", px + 4, py + 3 + bob, 8, 4);
+  if (blink) { rect(x, "#00e5ff", px + 5, py + 5 + bob, 2, 1); rect(x, "#00e5ff", px + 9, py + 5 + bob, 2, 1); }
+  else { rect(x, "#00e5ff", px + 5, py + 4 + bob, 2, 2); rect(x, "#00e5ff", px + 9, py + 4 + bob, 2, 2); }
+  rect(x, "#aab4ec", px + 8, py - 1 + bob, 1, 2); rect(x, "#ff7ab6", px + 7, py - 2 + bob, 3, 2);
+}
+
 function drawRoomScene() {
+  const p = place;
   rect(vctx, "#0a0820", 0, 0, VIEW_W + 1, VIEW_H + 1);
-  vctx.drawImage(roomImg, ROOM_X, ROOM_Y);
-  drawRoomLive();
-  drawPerson(vctx, ROOM_X + hero.x, ROOM_Y + hero.y, hero.dir, hero.moving ? [1, 0, 2, 0][Math.floor(hero.walk) % 4] : 0);
+  vctx.drawImage(p.img, p.ox, p.oy);
+  p.live(p.ox, p.oy);
+  for (const o of [hero, ...p.npcs].sort((a, b) => a.y - b.y)) {                          // celui qui est le plus bas passe devant
+    if (o.kind === "robot") drawRobot(vctx, p.ox + o.x, p.oy + o.y);
+    else drawPerson(vctx, p.ox + o.x, p.oy + o.y, o.dir, o === hero && hero.moving ? [1, 0, 2, 0][Math.floor(hero.walk) % 4] : 0, o.p);
+  }
 }
 
 // ---------- on dessine tout le décor une seule fois ----------
@@ -279,7 +502,7 @@ const WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
 const [world, wctx] = canvas(WORLD_W, WORLD_H);
 for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) drawTile(wctx, map[ty][tx], tx, ty);
 drawHouse(wctx, HOUSE_X, HOUSE_Y);
-const [roomImg, rctx] = canvas(192, 144); drawRoom(rctx);                  // l'intérieur est dessiné une seule fois, lui aussi
+drawLab(wctx, LAB_X, LAB_Y);
 
 // ---------- Épisode 3 : le héros ----------
 // Un personnage de 16 x 16 pixels, dessiné rectangle par rectangle : casque audio, cheveux en pointes, sweat et jean.
@@ -304,6 +527,7 @@ function drawPerson(x, px, py, dir, step, p = HERO) {
     if (p.spiky) rect(x, p.hair, X(5, 6), by, 6, 1);
     if (p.phones) { rect(x, p.phones, X(6, 2), by + 3, 2, 4); rect(x, p.phones, X(4, 8), by + 1, 8, 1); }
     rect(x, "#222222", X(10), by + 5, 1, 1);
+    if (p.glasses) { rect(x, p.glasses, X(9, 3), by + 4, 3, 1); rect(x, p.glasses, X(9, 3), by + 6, 3, 1); rect(x, p.glasses, X(11), by + 5, 1, 1); }
     return;
   }
 
@@ -319,6 +543,7 @@ function drawPerson(x, px, py, dir, step, p = HERO) {
     rect(x, p.skin, px + 4, by + 3, 8, 4);
     rect(x, p.hair, px + 4, by + 1, 8, 3);
     rect(x, "#222222", px + 6, by + 5, 1, 1); rect(x, "#222222", px + 9, by + 5, 1, 1);
+    if (p.glasses) for (const gx of [5, 8]) { rect(x, p.glasses, px + gx, by + 4, 3, 1); rect(x, p.glasses, px + gx, by + 6, 3, 1); rect(x, p.glasses, px + gx, by + 5, 1, 1); rect(x, p.glasses, px + gx + 2, by + 5, 1, 1); }   // les lunettes
   } else {                                                                      // de dos : les cheveux couvrent toute la tête
     rect(x, p.hair, px + 4, by + 1, 8, 6);
     rect(x, p.light, px + 6, by + 7, 4, 1);                                     // le bord de la capuche
@@ -328,19 +553,20 @@ function drawPerson(x, px, py, dir, step, p = HERO) {
 }
 
 // ---------- se déplacer ----------
-const SOLID = new Set([TREE, WATER, BUSH, ROCK, HOUSE, DOOR, SIGN]);                              // on ne passe pas à travers
+const DOORS = { [DOOR]: "home", [LDOOR]: "hall" };                                              // quelle pièce s'ouvre derrière chaque porte
+const SOLID = new Set([TREE, WATER, BUSH, ROCK, HOUSE, DOOR, SIGN, LDOOR, LSIGN]);                              // on ne passe pas à travers
 const MOVES = { ArrowUp: [0, -1, "up"], KeyW: [0, -1, "up"], ArrowDown: [0, 1, "down"], KeyS: [0, 1, "down"],
                 ArrowLeft: [-1, 0, "left"], KeyA: [-1, 0, "left"], ArrowRight: [1, 0, "right"], KeyD: [1, 0, "right"] };   // KeyW/A/S/D = ZQSD sur un clavier français
 const keys = [];                                                                // les touches enfoncées : la dernière pressée décide
 const hero = { x: 13 * TILE, y: 11 * TILE - 2, dir: "down", walk: 0, moving: false };
 
 const people = [hero];                                                          // le héros et les villageois : personne ne traverse personne
-let inside = false;                                                             // true quand le héros est dans la maison
-const crowd = () => (inside ? [hero] : people);
+let place = null;                                                               // où est le héros : null = dehors, sinon une pièce de PLACES
+const crowd = () => (place ? [hero, ...place.npcs] : people);
 
 // une case est-elle solide ? Dehors : la carte du village. Dedans : le plan de la pièce.
 function solidAt(tx, ty) {
-  if (inside) { const c = ROOM[ty]?.[tx]; return c === undefined || ROOM_SOLID.has(c); }
+  if (place) { const c = place.plan[ty]?.[tx]; return c === undefined || place.solid.has(c); }
   const id = map[ty]?.[tx];
   return id === undefined || SOLID.has(id);
 }
@@ -363,44 +589,72 @@ function step(who, dx, dy) {
 }
 
 function moveHero() {                                                           // appelée 60 fois par seconde : 1 pixel par appel
+  if (talk.open) { hero.moving = false; return; }                               // pendant une conversation, on ne bouge pas
   const [dx, dy, dir] = MOVES[keys[keys.length - 1]] || [];
   hero.moving = false;
   if (!dir) return;
   hero.dir = dir;
   if (step(hero, dx, dy)) { hero.moving = true; hero.walk += 0.12; }            // walk fait alterner les jambes
-  else if (dir === "up" && !inside && map[Math.floor((hero.y + 9) / TILE)]?.[Math.floor((hero.x + 8) / TILE)] === DOOR) goTo(true);   // contre la porte : on entre
+  else if (dir === "up" && !place) {                                            // contre une porte : on entre
+    const door = DOORS[map[Math.floor((hero.y + 9) / TILE)]?.[Math.floor((hero.x + 8) / TILE)]];
+    if (door) goTo(door);
+  }
 }
 
 // ---------- entrer et sortir : un fondu au noir, puis on change de décor ----------
 const fade = { a: 0, dir: 0, then: null };
-function goTo(enter) {
+const banner = { t: 999, text: "" };
+const showBanner = (text) => { banner.text = text; banner.t = 0; };
+
+function goTo(name, at, dir) {                                                  // name : une pièce de PLACES, ou null pour ressortir
   fade.dir = 1;
   fade.then = () => {
-    inside = enter;
-    if (enter) Object.assign(hero, { x: 5 * TILE, y: 7 * TILE - 2, dir: "up" });                // on arrive sur le paillasson
-    else {
-      Object.assign(hero, { x: 16 * TILE, y: 18 * TILE - 2, dir: "down" });                     // on ressort devant la porte
+    const from = place;
+    place = name ? PLACES[name] : null;
+    if (place) {
+      const [tx, ty] = at || place.start;                                       // on arrive sur le paillasson, ou à côté de la porte qu'on vient de passer
+      Object.assign(hero, { x: tx * TILE, y: ty * TILE - 2, dir: dir || "up" });
+      if (place.title) showBanner(place.title);
+    } else {
+      const [tx, ty] = from.out;                                                // on ressort devant la porte
+      Object.assign(hero, { x: tx * TILE, y: ty * TILE - 2, dir: "down" });
       cam.x = clamp(hero.x + 8 - VIEW_W / 2, 0, WORLD_W - VIEW_W); cam.y = clamp(hero.y + 8 - VIEW_H / 2, 0, WORLD_H - VIEW_H);
     }
   };
 }
 
-// ---------- le nom de la maison s'affiche quand on arrive près d'elle ----------
-const banner = { t: 999 };
-let inZone = false;
+// ---------- le nom d'un bâtiment s'affiche quand on arrive près de lui ----------
+const ZONES = [{ name: "MAISON DU DEV", x1: 13, y1: 13, x2: 20, y2: 19 }, { name: "LABO ONYXBUILD", x1: 8, y1: 3, x2: 15, y2: 9 }];
+let inZone = null;
 function checkZone() {
   const tx = Math.floor((hero.x + 8) / TILE), ty = Math.floor((hero.y + 12) / TILE);
-  const near = !inside && tx >= 13 && tx <= 20 && ty >= 13 && ty <= 19;
-  if (near && !inZone) banner.t = 0;
-  if (!inside) inZone = near;
+  const zone = place ? inZone : ZONES.find((z) => tx >= z.x1 && tx <= z.x2 && ty >= z.y1 && ty <= z.y2) || null;
+  if (zone && zone !== inZone) showBanner(zone.name);
+  inZone = zone;
   banner.t++;
+}
+
+// ---------- parler : Entrée devant quelqu'un ouvre la conversation ----------
+const talk = { open: false, npc: null, i: 0, chars: 0 };
+function interact() {
+  if (talk.open) {
+    if (talk.chars < talk.npc.lines[talk.i].length) talk.chars = talk.npc.lines[talk.i].length;   // un appui de plus : le texte s'affiche d'un coup
+    else if (++talk.i >= talk.npc.lines.length) talk.open = false;
+    else talk.chars = 0;
+    return;
+  }
+  const fx = hero.x + (hero.dir === "left" ? -14 : hero.dir === "right" ? 14 : 0), fy = hero.y + (hero.dir === "up" ? -14 : hero.dir === "down" ? 14 : 0);
+  const npc = crowd().find((o) => o !== hero && o.lines && Math.abs(o.x - fx) < 14 && Math.abs(o.y - fy) < 14);   // celui qu'on a juste en face
+  if (!npc) return;
+  Object.assign(talk, { open: true, npc, i: 0, chars: 0 });
+  npc.dir = { up: "down", down: "up", left: "right", right: "left" }[hero.dir];   // il se tourne vers le héros
 }
 
 // ---------- les villageois : ils flânent autour de leur case, à demi-vitesse ----------
 const VILLAGERS = [
-  { tx: 9, ty: 11, p: { hair: "#4a9a3a", skin: "#f0c090", shirt: "#e0a030", light: "#ffd27a", pants: "#5a4a3a", shoe: "#222222" } },                       // le jardinier
-  { tx: 18, ty: 7, p: { hair: "#7a3b1d", skin: "#e8b08a", shirt: "#c0392b", light: "#ff8a7a", pants: "#2f3f5f", shoe: "#3a2a1a" } },                       // la boulangère
-  { tx: 24, ty: 11, p: { hair: "#e8d9a0", skin: "#f6d2b0", shirt: "#2a8f7a", light: "#8ae8d0", pants: "#4a4a5a", shoe: "#f4f4f4", phones: "#ff5a7a" } },     // le jeune au casque rose
+  { tx: 9, ty: 11, p: { hair: "#4a9a3a", skin: "#f0c090", shirt: "#e0a030", light: "#ffd27a", pants: "#5a4a3a", shoe: "#222222" }, name: "JARDINIER", lines: ["Les fleurs poussent mieux depuis que le labo est ouvert."] },                       // le jardinier
+  { tx: 18, ty: 7, p: { hair: "#7a3b1d", skin: "#e8b08a", shirt: "#c0392b", light: "#ff8a7a", pants: "#2f3f5f", shoe: "#3a2a1a" }, name: "BOULANGERE", lines: ["Mon pain sort du four à six heures. Passe goûter !"] },                       // la boulangère
+  { tx: 24, ty: 11, p: { hair: "#e8d9a0", skin: "#f6d2b0", shirt: "#2a8f7a", light: "#8ae8d0", pants: "#4a4a5a", shoe: "#f4f4f4", phones: "#ff5a7a" }, name: "JEUNE", lines: ["Le labo OnyxBuild ? Ils font des sites web, des automatisations et des agents IA.", "Va voir, la porte est à gauche du village !"] },     // le jeune au casque rose
 ];
 for (const [i, v] of VILLAGERS.entries()) {
   Object.assign(v, { x: v.tx * TILE, y: v.ty * TILE - 2, hx: v.tx * TILE, hy: v.ty * TILE - 2, dir: "down", walk: 0, moving: false, timer: 20 + i * 25, go: null, rnd: random(100 + i) });
@@ -408,6 +662,7 @@ for (const [i, v] of VILLAGERS.entries()) {
 }
 
 function moveVillager(v) {
+  if (talk.open && talk.npc === v) { v.moving = false; return; }                // il ne bouge pas pendant qu'on lui parle
   if (--v.timer <= 0) {                                                         // toutes les 1 à 2 secondes, une nouvelle idée
     const far = Math.abs(v.x - v.hx) + Math.abs(v.y - v.hy) > 48;
     const dirs = [[0, 1, "down"], [0, -1, "up"], [-1, 0, "left"], [1, 0, "right"], null];
@@ -450,14 +705,19 @@ function update() {
     if (fade.a === 1 && fade.dir === 1) { fade.then(); fade.dir = -1; }
     else if (fade.a === 0) fade.dir = 0;
   } else moveHero();
-  if (!fade.dir && inside && Math.floor((hero.y + 12) / TILE) === 8) goTo(false);   // sur la case de sortie, on ressort
+  if (talk.open) talk.chars += 0.8;                                       // le texte s'écrit lettre après lettre
+  if (!fade.dir && place) {                                               // une case spéciale sous les pieds : la sortie ou une porte vers une autre salle
+    const c = place.plan[Math.floor((hero.y + 12) / TILE)]?.[Math.floor((hero.x + 8) / TILE)], link = place.links?.[c];
+    if (c === "E") goTo(null);
+    else if (link) goTo(link.to, link.at, link.dir);
+  }
   VILLAGERS.forEach(moveVillager);
-  if (!inside) updateCamera();
+  if (!place) updateCamera();
   checkZone();
 }
 
 function drawWorld() {
-  if (inside) return drawRoomScene();
+  if (place) return drawRoomScene();
   const cx = Math.floor(cam.x), cy = Math.floor(cam.y);
   vctx.drawImage(world, -cx, -cy);
 
@@ -473,8 +733,9 @@ function drawWorld() {
       const x0 = Math.max(tx * TILE, o.x), x1 = Math.min(tx * TILE + TILE, o.x + 16), y0 = Math.max(ty * TILE, o.y + 9), y1 = Math.min(ty * TILE + TILE, o.y + 16);
       if (x1 > x0 && y1 > y0) vctx.drawImage(world, x0, y0, x1 - x0, y1 - y0, x0 - cx, y0 - cy, x1 - x0, y1 - y0);
     }
-    if (o.y + 15 < HOUSE_Y + 8 && o.x + 11 > HOUSE_X && o.x + 4 < HOUSE_X + 80) {      // derrière la maison : le toit et la cheminée passent devant lui
-      const x0 = Math.max(HOUSE_X - 2, o.x), x1 = Math.min(HOUSE_X + 82, o.x + 16), y0 = Math.max(HOUSE_Y - 10, o.y), y1 = Math.min(HOUSE_Y + 64, o.y + 16);
+    for (const [bx, by, top] of [[HOUSE_X, HOUSE_Y, 10], [LAB_X, LAB_Y, 16]]) {      // derrière un bâtiment : le toit et la cheminée passent devant lui
+      if (o.y + 15 >= by + 8 || o.x + 11 <= bx || o.x + 4 >= bx + 80) continue;
+      const x0 = Math.max(bx - 2, o.x), x1 = Math.min(bx + 82, o.x + 16), y0 = Math.max(by - top, o.y), y1 = Math.min(by + 64, o.y + 16);
       if (x1 > x0 && y1 > y0) vctx.drawImage(world, x0, y0, x1 - x0, y1 - y0, x0 - cx, y0 - cy, x1 - x0, y1 - y0);
     }
   }
@@ -519,9 +780,9 @@ function drawTitle() {
 function draw() {
   drawScene();
   ctx.imageSmoothingEnabled = false;
-  const fx = started && !inside ? cam.x - Math.floor(cam.x) : 0, fy = started && !inside ? cam.y - Math.floor(cam.y) : 0;
+  const fx = started && !place ? cam.x - Math.floor(cam.x) : 0, fy = started && !place ? cam.y - Math.floor(cam.y) : 0;
   ctx.drawImage(view, -fx * 4, -fy * 4, (VIEW_W + 1) * 4, (VIEW_H + 1) * 4);   // on agrandit x4, décalé de la partie fine du mouvement
-  drawTitle(); drawBanner(); drawFade();
+  drawTitle(); drawBanner(); drawDialog(); drawFade();
 }
 
 // le panneau de bois qui annonce le nom de la maison : il glisse depuis le haut, reste deux secondes, puis remonte
@@ -533,9 +794,27 @@ function drawBanner() {
   ctx.fillStyle = "#7a4a22"; ctx.fillRect(256, y + 6, 448, 58);
   ctx.fillStyle = "#d9a85c"; ctx.fillRect(262, y + 12, 436, 46);
   ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = FONT(24);
-  ctx.fillStyle = "#fff3d0"; ctx.fillText("MAISON DU DEV", 482, y + 37);
-  ctx.fillStyle = "#3a2210"; ctx.fillText("MAISON DU DEV", 480, y + 35);
+  ctx.fillStyle = "#fff3d0"; ctx.fillText(banner.text, 482, y + 37);
+  ctx.fillStyle = "#3a2210"; ctx.fillText(banner.text, 480, y + 35);
   ctx.textAlign = "left";
+}
+
+// la boîte de dialogue : le nom de celui qui parle, et son texte qui s'écrit lettre après lettre
+function drawDialog() {
+  if (!talk.open) return;
+  const text = talk.npc.lines[talk.i];
+  ctx.fillStyle = "#0b0c1c"; ctx.fillRect(36, 452, 888, 172); ctx.fillStyle = "#6a70e0"; ctx.fillRect(36, 452, 888, 4); ctx.fillRect(36, 620, 888, 4);
+  ctx.fillStyle = "#4348b0"; ctx.fillRect(56, 428, 24 + talk.npc.name.length * 18, 40);
+  ctx.textBaseline = "middle"; ctx.font = FONT(16); ctx.fillStyle = "#ffffff"; ctx.fillText(talk.npc.name, 68, 449);
+  ctx.font = FONT(18);
+  const rows = []; let row = "";
+  for (const word of text.split(" ")) {                                         // on coupe en lignes sur le texte entier : rien ne bouge pendant qu'il s'écrit
+    if (row && ctx.measureText(row + " " + word).width > 830) { rows.push(row); row = word; } else row = row ? row + " " + word : word;
+  }
+  rows.push(row);
+  let left = Math.floor(talk.chars);
+  rows.forEach((r, i) => { ctx.fillStyle = "#ffffff"; ctx.fillText(r.slice(0, Math.max(0, left)), 64, 500 + i * 38); left -= r.length + 1; });
+  if (talk.chars >= text.length && time % 40 < 24) { ctx.fillStyle = "#00e5ff"; ctx.fillRect(884, 588, 16, 12); }   // ▼ : appuie sur Entrée
 }
 
 function drawFade() {
@@ -548,11 +827,10 @@ addEventListener("keydown", (e) => {
   if (MOVES[e.code]) { e.preventDefault(); if (!keys.includes(e.code)) keys.push(e.code); }   // les flèches ne font pas défiler la page
   if (e.repeat) return;
   if (e.code === "KeyM") return Sound.toggle();
-  if (["Enter", "Space"].includes(e.code) && !started) {
+  if (["Enter", "Space"].includes(e.code)) {
     e.preventDefault();
-    started = true;
-    Sound.init();                                                       // la musique démarre ici
-    Sound.select();
+    if (!started) { started = true; Sound.init(); Sound.select(); }     // la musique démarre ici
+    else if (!fade.dir) interact();                                     // ensuite, Entrée sert à parler à celui qui est en face
   }
 });
 addEventListener("keyup", (e) => { const i = keys.indexOf(e.code); if (i >= 0) keys.splice(i, 1); });
