@@ -1,11 +1,12 @@
-// ===== ONYX VILLAGE - Épisode 2 : le sol du village =====
-// Après l'écran d'accueil, le ciel laisse place au décor : herbe, rivière, sentiers, buissons et fleurs.
-// Tout est dessiné par le code, une seule fois, puis la "caméra" se balade dessus.
+// ===== ONYX VILLAGE - Épisode 3 : le héros =====
+// Après l'écran d'accueil, le ciel laisse place au village. On y découvre notre héros :
+// il est dessiné par le code, on le déplace avec les flèches et la caméra le suit.
+// Des villageois se promènent aussi : ils sont dessinés avec la même fonction, mais d'autres couleurs.
 
 const display = document.getElementById("display");
 const ctx = display.getContext("2d");
 const [view, vctx] = canvas(VIEW_W + 1, VIEW_H + 1);                  // une case de marge pour les déplacements fins de la caméra
-let time = 0, started = false, startedAt = 0, titleAlpha = 1, worldAlpha = 0;
+let time = 0, started = false, titleAlpha = 1, worldAlpha = 0;
 
 // ---------- le ciel : un dégradé en bandes, des étoiles et la lune ----------
 const SKY = ["#0a0820", "#0d0b2a", "#120f36", "#18134a", "#201a5c", "#2a2270", "#342a82"];
@@ -138,9 +139,124 @@ const WORLD_W = COLS * TILE, WORLD_H = ROWS * TILE;
 const [world, wctx] = canvas(WORLD_W, WORLD_H);
 for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) drawTile(wctx, map[ty][tx], tx, ty);
 
+// ---------- Épisode 3 : le héros ----------
+// Un personnage de 16 x 16 pixels, dessiné rectangle par rectangle : casque audio, cheveux en pointes, sweat et jean.
+// Pour changer de personnage, il suffit de changer les couleurs (la palette p).
+const HERO = { hair: "#2a1f2d", skin: "#f2c29b", shirt: "#2d2d3f", light: "#8a5cff", pants: "#3b5b92", shoe: "#f4f4f4", phones: "#00e5ff", spiky: true };
+
+// dir : "down" | "up" | "left" | "right" ; step : 0 = immobile, 1 et 2 = une jambe levée
+function drawPerson(x, px, py, dir, step, p = HERO) {
+  const side = dir === "left" || dir === "right", bob = step ? 1 : 0, by = py - bob;
+  const X = (dx, w = 1) => px + (dir === "left" ? 16 - dx - w : dx);          // pour regarder à gauche, on retourne le dessin
+  rect(x, "rgba(0,0,0,.28)", px + 3, py + 14, 10, 2);                          // l'ombre sous les pieds
+
+  if (side) {                                                                   // ----- de profil
+    const stride = step === 1 ? 1 : step === 2 ? -1 : 0;
+    for (const [lx, up] of [[6 - stride, stride > 0], [7 + stride, stride < 0]]) {
+      rect(x, p.pants, X(lx, 3), py + 11, 3, up ? 1 : 2); rect(x, p.shoe, X(lx, 3), py + (up ? 12 : 13), 3, 2);
+    }
+    rect(x, p.shirt, X(5, 6), by + 7, 6, 4 + bob);
+    rect(x, p.shirt, X(7 - stride, 2), by + 7, 2, 3); rect(x, p.skin, X(7 - stride, 2), by + 10, 2, 1);   // le bras balance
+    rect(x, p.skin, X(4, 8), by + 3, 8, 4);
+    rect(x, p.hair, X(4, 8), by + 1, 8, 3); rect(x, p.hair, X(4, 3), by + 3, 3, 3);
+    if (p.spiky) rect(x, p.hair, X(5, 6), by, 6, 1);
+    if (p.phones) { rect(x, p.phones, X(6, 2), by + 3, 2, 4); rect(x, p.phones, X(4, 8), by + 1, 8, 1); }
+    rect(x, "#222222", X(10), by + 5, 1, 1);
+    return;
+  }
+
+  for (const [i, lx] of [5, 8].entries()) {                                     // ----- de face ou de dos : les deux jambes
+    const up = step === i + 1 ? 1 : 0;                                          // la jambe qui avance se lève d'un pixel
+    rect(x, p.pants, px + lx, py + 11, 3, 2 - up); rect(x, p.shoe, px + lx, py + 13 - up, 3, 2);
+  }
+  rect(x, p.shirt, px + 4, by + 7, 8, 4 + bob);                                 // le sweat et ses manches
+  rect(x, p.shirt, px + 3, by + 7, 1, 3); rect(x, p.shirt, px + 12, by + 7, 1, 3);
+  rect(x, p.skin, px + 3, by + 10, 1, 1); rect(x, p.skin, px + 12, by + 10, 1, 1);
+  if (dir === "down") {
+    rect(x, p.light, px + 7, by + 7, 2, 4 + bob);                               // la fermeture éclair
+    rect(x, p.skin, px + 4, by + 3, 8, 4);
+    rect(x, p.hair, px + 4, by + 1, 8, 3);
+    rect(x, "#222222", px + 6, by + 5, 1, 1); rect(x, "#222222", px + 9, by + 5, 1, 1);
+  } else {                                                                      // de dos : les cheveux couvrent toute la tête
+    rect(x, p.hair, px + 4, by + 1, 8, 6);
+    rect(x, p.light, px + 6, by + 7, 4, 1);                                     // le bord de la capuche
+  }
+  if (p.spiky) rect(x, p.hair, px + 5, by, 6, 1);                               // les pointes
+  if (p.phones) { rect(x, p.phones, px + 2, by + 3, 2, 4); rect(x, p.phones, px + 12, by + 3, 2, 4); rect(x, p.phones, px + 3, by + 1, 10, 1); }   // le casque
+}
+
+// ---------- se déplacer ----------
+const SOLID = new Set([TREE, WATER, BUSH, ROCK]);                               // on ne passe pas à travers
+const MOVES = { ArrowUp: [0, -1, "up"], KeyW: [0, -1, "up"], ArrowDown: [0, 1, "down"], KeyS: [0, 1, "down"],
+                ArrowLeft: [-1, 0, "left"], KeyA: [-1, 0, "left"], ArrowRight: [1, 0, "right"], KeyD: [1, 0, "right"] };   // KeyW/A/S/D = ZQSD sur un clavier français
+const keys = [];                                                                // les touches enfoncées : la dernière pressée décide
+const hero = { x: 13 * TILE, y: 11 * TILE - 2, dir: "down", walk: 0, moving: false };
+
+const people = [hero];                                                          // le héros et les villageois : personne ne traverse personne
+
+// les pieds de who (8 x 6 pixels) ne doivent toucher ni case solide, ni autre personnage
+function blocked(who, x, y) {
+  if (people.some((o) => o !== who && Math.abs(o.x - x) < 10 && Math.abs(o.y - y) < 7)) return true;
+  return [[4, 10], [11, 10], [4, 15], [11, 15]].some(([fx, fy]) => {
+    const tile = map[Math.floor((y + fy) / TILE)]?.[Math.floor((x + fx) / TILE)];
+    return tile === undefined || SOLID.has(tile);
+  });
+}
+
+// avance d'un pixel ; contre un coin d'arbre ou de rocher, on glisse pour le contourner
+function step(who, dx, dy) {
+  if (!blocked(who, who.x + dx, who.y + dy)) { who.x += dx; who.y += dy; return true; }
+  for (let n = 1; n <= 4; n++) for (const s of [-1, 1]) {
+    if (blocked(who, who.x + dx + (dy ? s * n : 0), who.y + dy + (dx ? s * n : 0))) continue;
+    who.x += dy ? s : 0; who.y += dx ? s : 0;
+    return true;
+  }
+  return false;
+}
+
+function moveHero() {                                                           // appelée 60 fois par seconde : 1 pixel par appel
+  const [dx, dy, dir] = MOVES[keys[keys.length - 1]] || [];
+  hero.moving = false;
+  if (!dir) return;
+  hero.dir = dir;
+  if (step(hero, dx, dy)) { hero.moving = true; hero.walk += 0.12; }            // walk fait alterner les jambes
+}
+
+// ---------- les villageois : ils flânent autour de leur case, à demi-vitesse ----------
+const VILLAGERS = [
+  { tx: 9, ty: 11, p: { hair: "#4a9a3a", skin: "#f0c090", shirt: "#e0a030", light: "#ffd27a", pants: "#5a4a3a", shoe: "#222222" } },                       // le jardinier
+  { tx: 18, ty: 7, p: { hair: "#7a3b1d", skin: "#e8b08a", shirt: "#c0392b", light: "#ff8a7a", pants: "#2f3f5f", shoe: "#3a2a1a" } },                       // la boulangère
+  { tx: 24, ty: 11, p: { hair: "#e8d9a0", skin: "#f6d2b0", shirt: "#2a8f7a", light: "#8ae8d0", pants: "#4a4a5a", shoe: "#f4f4f4", phones: "#ff5a7a" } },     // le jeune au casque rose
+];
+for (const [i, v] of VILLAGERS.entries()) {
+  Object.assign(v, { x: v.tx * TILE, y: v.ty * TILE - 2, hx: v.tx * TILE, hy: v.ty * TILE - 2, dir: "down", walk: 0, moving: false, timer: 20 + i * 25, go: null, rnd: random(100 + i) });
+  people.push(v);
+}
+
+function moveVillager(v) {
+  if (--v.timer <= 0) {                                                         // toutes les 1 à 2 secondes, une nouvelle idée
+    const far = Math.abs(v.x - v.hx) + Math.abs(v.y - v.hy) > 48;
+    const dirs = [[0, 1, "down"], [0, -1, "up"], [-1, 0, "left"], [1, 0, "right"], null];
+    const back = Math.abs(v.hx - v.x) > Math.abs(v.hy - v.y) ? (v.hx < v.x ? dirs[2] : dirs[3]) : (v.hy < v.y ? dirs[1] : dirs[0]);   // trop loin : retour à la maison
+    v.go = far ? back : dirs[Math.floor(v.rnd() * dirs.length)];
+    v.timer = 40 + Math.floor(v.rnd() * 70);
+  }
+  v.moving = false;
+  if (!v.go || time % 2) return;                                                // un pixel toutes les deux images
+  v.dir = v.go[2];
+  if (step(v, v.go[0], v.go[1])) { v.moving = true; v.walk += 0.2; } else v.go = null;
+}
+
+const cam = { x: clamp(hero.x + 8 - VIEW_W / 2, 0, WORLD_W - VIEW_W), y: clamp(hero.y + 8 - VIEW_H / 2, 0, WORLD_H - VIEW_H) };
+
+function updateCamera() {                                                       // la caméra suit le héros en douceur, sans sortir de la carte
+  const tx = clamp(hero.x + 8 - VIEW_W / 2, 0, WORLD_W - VIEW_W), ty = clamp(hero.y + 8 - VIEW_H / 2, 0, WORLD_H - VIEW_H);
+  cam.x = Math.round((cam.x + (tx - cam.x) * 0.12) * 4) / 4;                    // arrondie au quart de pixel : le mouvement reste fluide
+  cam.y = Math.round((cam.y + (ty - cam.y) * 0.12) * 4) / 4;
+}
+
 // ---------- ce qui bouge : des papillons ----------
 const butterflies = Array.from({ length: 6 }, (_, i) => ({ x: 120 + i * 55, y: 110 + (i % 3) * 70, a: i * 2, color: ["#ff8fc0", "#ffe14a", "#8fd0ff", "#ffffff"][i % 4] }));
-const cam = { x: 36, y: 32 };
 
 function update() {
   time++;
@@ -151,9 +267,7 @@ function update() {
   if (!started) return;
   titleAlpha = Math.max(0, titleAlpha - 1 / 40);                          // le titre s'efface...
   worldAlpha = Math.min(1, worldAlpha + 1 / 80);                          // ...et le décor apparaît
-  const t = time - startedAt;                                             // la caméra glisse doucement, en partant au ralenti
-  cam.x = Math.round((136 - 100 * Math.cos(t / 300)) * 4) / 4;            // arrondie au quart de pixel : le mouvement reste fluide
-  cam.y = Math.round((112 - 80 * Math.cos(t / 230)) * 4) / 4;
+  moveHero(); VILLAGERS.forEach(moveVillager); updateCamera();
 }
 
 function drawWorld() {
@@ -163,6 +277,15 @@ function drawWorld() {
   for (let ty = Math.floor(cy / TILE); ty <= (cy + VIEW_H) / TILE; ty++) for (let tx = Math.floor(cx / TILE); tx <= (cx + VIEW_W) / TILE; tx++) {
     if (map[ty]?.[tx] !== WATER) continue;                                // l'eau scintille
     if (((time >> 4) + tx * 3 + ty * 5) % 4 === 0) rect(vctx, "#d6ecff", tx * TILE + 3 + ((time >> 3) % 6) - cx, ty * TILE + 4 + ((tx + ty) % 3) * 4 - cy, 4, 1);
+  }
+
+  for (const o of [...people].sort((a, b) => a.y - b.y)) {                // celui qui est le plus bas passe devant
+    drawPerson(vctx, o.x - cx, o.y - cy, o.dir, o.moving ? [1, 0, 2, 0][Math.floor(o.walk) % 4] : 0, o.p);
+    for (let ty = Math.floor((o.y + 9) / TILE); ty <= Math.floor((o.y + 15) / TILE); ty++) for (let tx = Math.floor(o.x / TILE); tx <= Math.floor((o.x + 15) / TILE); tx++) {
+      if (map[ty]?.[tx] !== TALL) continue;                               // l'herbe haute cache les pieds
+      const x0 = Math.max(tx * TILE, o.x), x1 = Math.min(tx * TILE + TILE, o.x + 16), y0 = Math.max(ty * TILE, o.y + 9), y1 = Math.min(ty * TILE + TILE, o.y + 16);
+      if (x1 > x0 && y1 > y0) vctx.drawImage(world, x0, y0, x1 - x0, y1 - y0, x0 - cx, y0 - cy, x1 - x0, y1 - y0);
+    }
   }
   for (const b of butterflies) {
     const wing = Math.sin(time * 0.4 + b.a * 9) > 0 ? 3 : 1, bx = Math.round(b.x - cx), by = Math.round(b.y - cy);
@@ -205,15 +328,18 @@ function draw() {
 
 // ---------- clavier ----------
 addEventListener("keydown", (e) => {
+  if (MOVES[e.code]) { e.preventDefault(); if (!keys.includes(e.code)) keys.push(e.code); }   // les flèches ne font pas défiler la page
   if (e.repeat) return;
   if (e.code === "KeyM") return Sound.toggle();
   if (["Enter", "Space"].includes(e.code) && !started) {
     e.preventDefault();
-    started = true; startedAt = time;
+    started = true;
     Sound.init();                                                       // la musique démarre ici
     Sound.select();
   }
 });
+addEventListener("keyup", (e) => { const i = keys.indexOf(e.code); if (i >= 0) keys.splice(i, 1); });
+addEventListener("blur", () => { keys.length = 0; });                  // si on quitte la fenêtre, le héros s'arrête
 
 // ---------- boucle du jeu : 60 images par seconde ----------
 let last = performance.now(), acc = 0;
