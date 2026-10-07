@@ -1,6 +1,6 @@
-// ===== ONYX VILLAGE - Épisode 5 : le labo OnyxBuild =====
-// À l'ouest du village, le labo : un bâtiment moderne avec trois salles reliées par des portes
-// (l'accueil et son professeur, la salle des PC, la salle des serveurs). Et on peut parler aux habitants.
+// ===== ONYX VILLAGE - Épisode 6 : les créatures sauvages =====
+// Loin des sentiers et des bâtiments, on peut croiser des créatures étranges.
+// Un combat éclair : tape leur mot avant qu'elles ne t'attaquent !
 
 const display = document.getElementById("display");
 const ctx = display.getContext("2d");
@@ -554,7 +554,17 @@ function drawPerson(x, px, py, dir, step, p = HERO) {
 
 // ---------- se déplacer ----------
 const DOORS = { [DOOR]: "home", [LDOOR]: "hall" };                                              // quelle pièce s'ouvre derrière chaque porte
-const SOLID = new Set([TREE, WATER, BUSH, ROCK, HOUSE, DOOR, SIGN, LDOOR, LSIGN]);                              // on ne passe pas à travers
+const SOLID = new Set([TREE, WATER, BUSH, ROCK, HOUSE, DOOR, SIGN, LDOOR, LSIGN]);                // on ne passe pas à travers
+
+// ---------- Épisode 6 : où vivent les créatures ? ----------
+// Une case est "sauvage" quand elle est loin de tout ce qui est construit : sentiers, plages, gué, maisons, portes et panneaux.
+// Si tu ajoutes un chemin ou un bâtiment plus tard, les créatures s'éloignent toutes seules : il n'y a rien à changer ici.
+const CIVIL = new Set([PATH, SAND, STONES, HOUSE, DOOR, SIGN, LDOOR, LSIGN]);
+function distanceToCivil(x, y) {                                                // en cases : 1, 2, ou 3 pour "loin"
+  for (let d = 1; d < 3; d++) for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) if (CIVIL.has(map[y + dy]?.[x + dx])) return d;
+  return 3;
+}
+const wild = map.map((row, y) => row.map((id, x) => !SOLID.has(id) && !CIVIL.has(id) && distanceToCivil(x, y) >= 3));   // sauvage = au moins 3 cases de tout ce qui est construit
 const MOVES = { ArrowUp: [0, -1, "up"], KeyW: [0, -1, "up"], ArrowDown: [0, 1, "down"], KeyS: [0, 1, "down"],
                 ArrowLeft: [-1, 0, "left"], KeyA: [-1, 0, "left"], ArrowRight: [1, 0, "right"], KeyD: [1, 0, "right"] };   // KeyW/A/S/D = ZQSD sur un clavier français
 const keys = [];                                                                // les touches enfoncées : la dernière pressée décide
@@ -684,6 +694,221 @@ function updateCamera() {                                                       
   cam.y = Math.round((cam.y + (ty - cam.y) * 0.12) * 4) / 4;
 }
 
+// ---------- les créatures : quatre bêtes de l'informatique, dessinées sur 48 x 48 pixels ----------
+function ellipse(x, cx, cy, rx, ry, color) {
+  for (let yy = -ry; yy <= ry; yy++) for (let xx = -rx; xx <= rx; xx++) if ((xx * xx) / (rx * rx) + (yy * yy) / (ry * ry) <= 1) rect(x, color, cx + xx, cy + yy, 1, 1);
+}
+function tint(img, color) {                                                     // la même image, mais toute d'une couleur (pour les éclairs de dégâts)
+  const [c, x] = canvas(img.width, img.height);
+  x.drawImage(img, 0, 0); x.globalCompositeOperation = "source-in"; x.fillStyle = color; x.fillRect(0, 0, img.width, img.height);
+  return c;
+}
+
+function spriteBugzy(x) {                                                       // le scarabée : un bug, au sens propre
+  for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) rect(x, "#14351e", 24 + sx * 17 - (sx < 0 ? 4 : 0), 24 + k * 6, 5, 2);
+  ellipse(x, 24, 29, 16, 14, "#1f6b2c"); ellipse(x, 24, 28, 15, 13, "#3fb04f"); ellipse(x, 21, 23, 9, 6, "#7fe08a");
+  rect(x, "#1f6b2c", 23, 17, 2, 26);
+  for (const [sx, sy] of [[14, 30], [33, 32], [16, 38], [31, 25]]) ellipse(x, sx, sy, 3, 3, "#e8445a");
+  ellipse(x, 24, 12, 9, 7, "#2e8b3a"); ellipse(x, 24, 11, 8, 6, "#59cf62");
+  rect(x, "#14351e", 14, 3, 2, 5); rect(x, "#14351e", 32, 3, 2, 5); rect(x, "#14351e", 12, 1, 3, 2); rect(x, "#14351e", 33, 1, 3, 2);
+}
+function spriteGlitchy(x) {                                                     // le fantôme de pixels, qui bave sur les bords
+  for (let yy = 4; yy < 43; yy++) {
+    const half = yy < 20 ? Math.round(Math.sqrt(16 * 16 - (20 - yy) * (20 - yy))) : 16;
+    rect(x, yy > 30 ? "#6a40d8" : "#8a5cff", 24 - half, yy, half * 2, 1);
+    if (yy > 8 && yy < 26) rect(x, "#c4b5fd", 24 - half + 2, yy, 3, 1);
+  }
+  for (let i = 0; i < 4; i++) rect(x, "#0b0c1c", 8 + i * 10, 38, 5, 6);          // les dents du bas
+  for (let i = 0; i < 6; i++) rect(x, "#14183f", 17 + i * 3, 29 + (i % 2) * 2, 3, 2);
+}
+function spriteVirux(x) {                                                       // la boule à piques du virus
+  for (let a = 0; a < 12; a++) for (let k = 0; k < 7; k++) rect(x, k < 5 ? "#ff8a3d" : "#ffd54a", Math.round(24 + Math.cos((a * Math.PI) / 6) * (12 + k)), Math.round(26 + Math.sin((a * Math.PI) / 6) * (12 + k)), 2, 2);
+  ellipse(x, 24, 26, 13, 13, "#8f1f33"); ellipse(x, 24, 25, 12, 12, "#e8445a"); ellipse(x, 20, 20, 6, 5, "#ff8a9a");
+  rect(x, "#14183f", 15, 17, 8, 2); rect(x, "#14183f", 25, 17, 8, 2);                                   // les sourcils en colère
+  rect(x, "#14183f", 16, 31, 16, 6); for (let i = 0; i < 4; i++) { rect(x, "#ffffff", 17 + i * 4, 31, 3, 2); rect(x, "#ffffff", 19 + i * 4, 35, 3, 2); }
+}
+function spriteLaggy(x) {                                                       // l'escargot qui charge...
+  ellipse(x, 22, 37, 18, 6, "#4a7fb8"); ellipse(x, 22, 36, 17, 5, "#8fd0f5"); ellipse(x, 8, 31, 6, 7, "#8fd0f5");
+  rect(x, "#6fa8dc", 5, 18, 2, 11); rect(x, "#6fa8dc", 11, 18, 2, 11); rect(x, "#14183f", 5, 36, 6, 1);
+  ellipse(x, 29, 22, 13, 13, "#232a6b"); ellipse(x, 29, 22, 11, 11, "#4348b0");
+  for (const r of [3, 6, 9]) for (let a = 0; a < 40; a++) rect(x, "#8a5cff", Math.round(29 + Math.cos((a / 40) * 6.28) * r), Math.round(22 + Math.sin((a / 40) * 6.28) * r), 1, 1);
+}
+function spriteSpammo(x) {                                                      // l'enveloppe volante du spam
+  rect(x, "#d94a8c", 8, 16, 32, 24); rect(x, "#ff7ab6", 9, 17, 30, 22);
+  for (let i = 0; i < 15; i++) { rect(x, "#ffc7e0", 9 + i, 17 + Math.floor(i * 0.7), 2, 1); rect(x, "#ffc7e0", 37 - i, 17 + Math.floor(i * 0.7), 2, 1); }
+  ellipse(x, 24, 29, 4, 4, "#c0223e"); rect(x, "#ffffff", 22, 28, 4, 1); rect(x, "#ffffff", 23, 27, 2, 3);
+  rect(x, "#14183f", 17, 33, 14, 2);
+}
+function extraLaggy(x, y) {                                                     // le cercle de chargement au-dessus de sa tête
+  for (let i = 0; i < 8; i++) rect(vctx, ((i + (time >> 2)) % 8) < 3 ? "#ffffff" : "#6a70e0", Math.round(x + 24 + Math.cos((i / 8) * 6.28) * 5), Math.round(y + 5 + Math.sin((i / 8) * 6.28) * 5), 2, 2);
+}
+function extraSpammo(x, y) {                                                    // ses petites ailes qui battent
+  const f = Math.round(Math.sin(time / 4) * 3);
+  for (const [dx, w, dy] of [[1, 7, 16], [3, 5, 19], [5, 3, 22]]) { rect(vctx, "#ffb3d6", x + dx, y + dy + f, w, 2); rect(vctx, "#ffb3d6", x + 48 - dx - w, y + dy + f, w, 2); }
+}
+
+const CREATURES = [
+  { name: "BUGZY", words: ["BUG", "CRASH", "DEBUG", "PATCH"], sprite: spriteBugzy, eyes: [[18, 8], [26, 8]] },
+  { name: "GLITCHY", words: ["GLITCH", "PIXEL", "ERREUR", "NULL"], sprite: spriteGlitchy, eyes: [[15, 17], [28, 17]], glitch: true },
+  { name: "VIRUX", words: ["VIRUS", "HACK", "TROJAN", "SPAM"], sprite: spriteVirux, eyes: [[16, 19], [27, 19]] },
+  { name: "LAGGY", words: ["LAG", "PING", "LOAD", "WAIT"], sprite: spriteLaggy, eyes: [[3, 13], [9, 13]], extra: extraLaggy },
+  { name: "SPAMMO", words: ["MAIL", "SPAM", "POP", "PUB"], sprite: spriteSpammo, eyes: [[15, 22], [28, 22]], extra: extraSpammo },
+];
+for (const c of CREATURES) {
+  c.img = placeImage(48, 48, c.sprite); c.white = tint(c.img, "#ffffff");
+  if (c.glitch) { c.cyan = tint(c.img, "#00e5ff"); c.pink = tint(c.img, "#ff7ab6"); }
+}
+const heroBack = placeImage(16, 16, (x) => drawPerson(x, 0, 0, "up", 0));       // le héros vu de dos, agrandi pendant les combats
+
+// ---------- le héros : sa vie, son expérience, et la chance de rencontrer une créature ----------
+const player = { hearts: 3, maxHearts: 3, xp: 0, level: 1 };
+const wildRnd = random(77), battleRnd = random(1234);                          // toujours le même hasard : les vidéos se répètent à l'identique
+let wildSteps = 0, nextFight = 14 + Math.floor(wildRnd() * 16), lastTile = "";
+const leaves = [];
+
+function checkWild() {                                                          // chaque nouvelle case sauvage rapproche d'une rencontre
+  if (place || talk.open || fade.dir || battle.active) return;
+  const tx = Math.floor((hero.x + 8) / TILE), ty = Math.floor((hero.y + 12) / TILE), key = tx + "," + ty;
+  if (key === lastTile) return;
+  lastTile = key;
+  if (!wild[ty]?.[tx]) return;
+  for (let i = 0; i < 3; i++) leaves.push({ x: hero.x + 8, y: hero.y + 13, vx: (wildRnd() - 0.5) * 0.8, vy: -0.3 - wildRnd() * 0.4, life: 30 });   // des feuilles s'envolent
+  if (++wildSteps >= nextFight) { wildSteps = 0; nextFight = 14 + Math.floor(wildRnd() * 16); startBattle(); }
+}
+
+// ---------- le combat : une créature, un mot à taper avant la fin du temps ----------
+const WORD_TIME = 5;                                                            // secondes pour taper un mot
+const battle = { active: false, phase: "", t: 0, mon: null, word: "", typed: "", timer: 1, hp: 0, maxHp: 2, flashMon: 0, shake: 0, hurt: 0, wrong: 0, msg: "" };
+
+function startBattle() {
+  Object.assign(battle, { active: true, phase: "alert", t: 0, mon: CREATURES[Math.floor(battleRnd() * CREATURES.length)], hp: 2, maxHp: 2, flashMon: 0, shake: 0, hurt: 0, wrong: 0, msg: "" });
+  hero.moving = false; keys.length = 0;                                         // on lâche les touches de déplacement
+  newWord();
+  Sound.tone(880, 0.07, "square", 0.06); Sound.tone(1175, 0.12, "square", 0.06, 0.09);
+}
+
+function newWord() {                                                            // un mot de la créature, jamais deux fois le même d'affilée
+  const words = battle.mon.words.filter((w) => w !== battle.word);
+  battle.word = words[Math.floor(battleRnd() * words.length)];
+  battle.typed = ""; battle.timer = 1;
+}
+
+function typeKey(ch) {                                                          // une lettre tapée pendant le combat
+  const b = battle;
+  if (b.phase !== "fight") return;
+  if (ch !== b.word[b.typed.length]) { b.typed = ""; b.wrong = 12; Sound.tone(110, 0.12, "sawtooth", 0.05); return; }   // une faute : on recommence le mot
+  b.typed += ch;
+  Sound.tone(520 + b.typed.length * 70, 0.05, "square", 0.05);
+  if (b.typed !== b.word) return;
+  b.hp--; b.flashMon = 16; b.shake = 16;                                        // mot terminé : la créature encaisse
+  Sound.tone(300, 0.1, "square", 0.07); Sound.tone(200, 0.15, "square", 0.07, 0.08);
+  if (b.hp > 0) return newWord();
+  b.phase = "win"; b.t = 0;                                                     // la créature est vaincue
+  player.xp += 10;
+  if (player.xp >= player.level * 30) { player.xp -= player.level * 30; player.level++; player.hearts = player.maxHearts; b.msg = "NIVEAU " + player.level + " !"; }
+  [523, 659, 784, 1047].forEach((f, i) => Sound.tone(f, 0.12, "square", 0.06, i * 0.1));
+}
+
+function updateBattle() {                                                       // appelée 60 fois par seconde pendant un combat
+  const b = battle;
+  b.t++;
+  for (const k of ["flashMon", "shake", "hurt", "wrong"]) if (b[k] > 0) b[k]--;
+  if (b.phase === "alert" && b.t >= 40) Object.assign(b, { phase: "intro", t: 0 });
+  else if (b.phase === "intro" && b.t >= 50) Object.assign(b, { phase: "fight", t: 0 });
+  else if (b.phase === "fight") {
+    b.timer -= 1 / (WORD_TIME * 60);
+    if (b.timer > 0) return;
+    player.hearts--; b.hurt = 24; b.typed = ""; b.timer = 1;                    // trop lent : la créature attaque
+    Sound.tone(160, 0.2, "sawtooth", 0.07);
+    if (player.hearts <= 0) Object.assign(b, { phase: "lose", t: 0 });
+  } else if (b.phase === "win" && b.t >= 100) { b.active = false; wildSteps = 0; }
+  else if (b.phase === "lose" && b.t >= 110) {                                  // K.O. : on se réveille au départ, en pleine forme
+    b.active = false; player.hearts = player.maxHearts;
+    Object.assign(hero, { x: 13 * TILE, y: 11 * TILE - 2, dir: "down" });
+    cam.x = clamp(hero.x + 8 - VIEW_W / 2, 0, WORLD_W - VIEW_W); cam.y = clamp(hero.y + 8 - VIEW_H / 2, 0, WORLD_H - VIEW_H);
+  }
+}
+
+// ---------- l'écran de combat : un décor de crépuscule, la créature en haut, le héros de dos en bas ----------
+function drawCreature(c, x, y, b) {
+  if (b.phase === "win") { vctx.globalAlpha = Math.max(0, 1 - b.t / 30); y -= b.t / 4; }
+  if (c.glitch) {
+    vctx.globalAlpha *= 0.5; vctx.drawImage(c.cyan, x - 2 + (time % 6 < 3 ? 1 : 0), y); vctx.drawImage(c.pink, x + 2 - (time % 6 < 3 ? 1 : 0), y); vctx.globalAlpha = b.phase === "win" ? Math.max(0, 1 - b.t / 30) : 1;
+    for (let sy = 0; sy < 48; sy += 4) vctx.drawImage(c.img, 0, sy, 48, 4, x + (Math.floor(time / 3 + sy * 7) % 11 === 0 ? (sy % 8 ? 3 : -3) : 0), y + sy, 48, 4);   // des tranches décalées
+  } else vctx.drawImage(c.img, x, y);
+  const blink = time % 150 < 6;
+  for (const [ex, ey] of c.eyes) {
+    if (blink) rect(vctx, "#14183f", x + ex, y + ey + 2, 5, 1);
+    else { rect(vctx, "#ffffff", x + ex, y + ey, 5, 5); rect(vctx, "#14183f", x + ex + 1 + (Math.sin(time / 40) > 0 ? 1 : 0), y + ey + 1, 3, 3); }
+  }
+  if (c.extra) c.extra(x, y);
+  if (b.flashMon && b.flashMon % 4 < 2) vctx.drawImage(c.white, x, y);          // un éclair blanc quand elle encaisse
+  vctx.globalAlpha = 1;
+}
+
+function drawBattleScene() {
+  const b = battle, slide = b.phase === "intro" ? Math.max(0, 1 - b.t / 25) : 0;
+  ["#2a2270", "#4a3a9a", "#7a58c8", "#b078d8", "#e89ac8", "#ffc0a0"].forEach((c, i) => rect(vctx, c, 0, i * 14, VIEW_W + 1, 15));   // le ciel du soir
+  rect(vctx, "#3f9a45", 0, 84, VIEW_W + 1, 77);
+  for (let y = 88; y < 160; y += 8) rect(vctx, "#4aae50", 0, y, VIEW_W + 1, 3);
+  ellipse(vctx, 170, 74, 38, 7, "#2e7a36"); ellipse(vctx, 170, 73, 36, 6, "#52b858");                  // une plate-forme par combattant
+  ellipse(vctx, 60, 112, 44, 8, "#2e7a36"); ellipse(vctx, 60, 111, 42, 7, "#52b858");
+  const bob = Math.round(Math.sin(time / 14) * 2), mx = 146 + Math.round(slide * 120) + (b.shake ? (b.shake % 4 < 2 ? -2 : 2) : 0);
+  drawCreature(b.mon, mx, 22 + bob, b);
+  const hx = 36 + (b.hurt ? (b.hurt % 4 < 2 ? -2 : 2) : 0);
+  if (!b.hurt || b.hurt % 6 < 4) vctx.drawImage(heroBack, hx, 66, 48, 48);       // le héros clignote quand il est touché
+}
+
+// la vie et l'expérience, en haut à gauche
+const HEART = ["0110110", "1111111", "1111111", "0111110", "0011100", "0001000"];
+function drawHud() {
+  if (!started || titleAlpha > 0.4) return;
+  for (let i = 0; i < player.maxHearts; i++) HEART.forEach((row, y) => [...row].forEach((on, x) => {
+    if (on !== "1") return;
+    ctx.fillStyle = i < player.hearts ? "#e8445a" : "#3a3f6a"; ctx.fillRect(16 + i * 30 + x * 3, 14 + y * 3, 3, 3);
+  }));
+  ctx.textBaseline = "middle"; ctx.font = FONT(10); ctx.fillStyle = "#ffffff"; ctx.fillText("NIV " + player.level, 16, 46);
+  ctx.fillStyle = "#14183f"; ctx.fillRect(84, 40, 88, 12); ctx.fillStyle = "#00e5ff"; ctx.fillRect(86, 42, 84 * player.xp / (player.level * 30), 8);
+}
+
+// le nom de la créature, le mot à taper et le temps qui reste
+function drawBattleHud() {
+  const b = battle;
+  if (!b.active || b.phase === "alert") return;
+  ctx.textBaseline = "middle"; ctx.textAlign = "left";
+  ctx.fillStyle = "#0b0c1c"; ctx.fillRect(16, 84, 330, 66); ctx.fillStyle = "#6a70e0"; ctx.fillRect(16, 84, 330, 4);
+  ctx.font = FONT(20); ctx.fillStyle = "#ffffff"; ctx.fillText(b.mon.name, 34, 112);
+  for (let i = 0; i < b.maxHp; i++) { ctx.fillStyle = i < b.hp ? "#e8445a" : "#2a2d48"; ctx.fillRect(34 + i * 34, 126, 26, 12); }
+  ctx.fillStyle = "#0b0c1c"; ctx.fillRect(140, 498, 680, 124); ctx.fillStyle = b.wrong ? "#e8445a" : "#6a70e0"; ctx.fillRect(140, 498, 680, 5); ctx.fillRect(140, 617, 680, 5);
+  ctx.textAlign = "center";
+  if (b.phase === "intro") { ctx.font = FONT(22); ctx.fillStyle = "#ffffff"; ctx.fillText(`UN ${b.mon.name} SAUVAGE APPARAÎT !`, 480, 560); }
+  else if (b.phase === "fight") {
+    ctx.font = FONT(46);
+    const x0 = 480 - (b.word.length * 54) / 2 + 27;
+    [...b.word].forEach((ch, i) => { ctx.fillStyle = i < b.typed.length ? "#59cf62" : "#ffffff"; ctx.fillText(ch, x0 + i * 54, 538 + (i === b.typed.length ? Math.round(Math.sin(time / 6) * 2) : 0)); });
+    ctx.fillStyle = "#14183f"; ctx.fillRect(170, 588, 620, 16);
+    ctx.fillStyle = b.timer > 0.5 ? "#59cf62" : b.timer > 0.25 ? "#ffd54a" : "#e8445a"; ctx.fillRect(172, 590, 616 * b.timer, 12);
+  } else if (b.phase === "win") {
+    ctx.font = FONT(30); ctx.fillStyle = "#ffd54a"; ctx.fillText("VICTOIRE !", 480, 536);
+    ctx.font = FONT(20); ctx.fillStyle = "#ffffff"; ctx.fillText("+10 XP" + (b.msg ? "    " + b.msg : ""), 480, 588);
+  } else if (b.phase === "lose") {
+    ctx.font = FONT(24); ctx.fillStyle = "#e8445a"; ctx.fillText("TU T'ÉVANOUIS...", 480, 536);
+    ctx.font = FONT(16); ctx.fillStyle = "#ffffff"; ctx.fillText("Retour au départ, en pleine forme.", 480, 588);
+  }
+  ctx.textAlign = "left";
+}
+
+// le "!" qui annonce la rencontre, puis l'éclair blanc
+function drawFlash() {
+  const b = battle;
+  if (!b.active) return;
+  if (b.phase === "alert") {
+    const hx = (hero.x - cam.x) * 4 + 32, hy = (hero.y - cam.y) * 4 - 54;
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(hx - 26, hy - 30, 52, 60); ctx.fillStyle = "#e8445a"; ctx.fillRect(hx - 5, hy - 22, 10, 30); ctx.fillRect(hx - 5, hy + 14, 10, 10);
+    if (b.t > 28) { ctx.fillStyle = `rgba(255,255,255,${(b.t - 28) / 12})`; ctx.fillRect(0, 0, 960, 640); }
+  } else if (b.phase === "intro" && b.t < 16) { ctx.fillStyle = `rgba(255,255,255,${1 - b.t / 16})`; ctx.fillRect(0, 0, 960, 640); }
+}
+
 // ---------- ce qui bouge : des papillons ----------
 let smoke = [];                                                                // la fumée de la cheminée
 const butterflies = Array.from({ length: 6 }, (_, i) => ({ x: 120 + i * 55, y: 110 + (i % 3) * 70, a: i * 2, color: ["#ff8fc0", "#ffe14a", "#8fd0ff", "#ffffff"][i % 4] }));
@@ -696,6 +921,8 @@ function update() {
   if (time % 14 === 0) smoke.push({ x: HOUSE_X + 62, y: HOUSE_Y - 10, life: 90 });
   for (const p of smoke) { p.x += 0.15; p.y -= 0.4; p.life--; }
   smoke = smoke.filter((p) => p.life > 0);
+  for (const l of leaves) { l.x += l.vx; l.y += l.vy; l.life--; }
+  while (leaves.length && leaves[0].life <= 0) leaves.shift();
   for (const b of butterflies) { b.a += 0.03; b.x += Math.cos(b.a * 1.3) * 0.7; b.y += Math.sin(b.a * 1.9) * 0.5; }
   if (!started) return;
   titleAlpha = Math.max(0, titleAlpha - 1 / 40);                          // le titre s'efface...
@@ -704,19 +931,21 @@ function update() {
     fade.a = clamp(fade.a + fade.dir * 0.08, 0, 1);
     if (fade.a === 1 && fade.dir === 1) { fade.then(); fade.dir = -1; }
     else if (fade.a === 0) fade.dir = 0;
-  } else moveHero();
+  } else if (battle.active) updateBattle();
+  else { moveHero(); checkWild(); }
   if (talk.open) talk.chars += 0.8;                                       // le texte s'écrit lettre après lettre
   if (!fade.dir && place) {                                               // une case spéciale sous les pieds : la sortie ou une porte vers une autre salle
     const c = place.plan[Math.floor((hero.y + 12) / TILE)]?.[Math.floor((hero.x + 8) / TILE)], link = place.links?.[c];
     if (c === "E") goTo(null);
     else if (link) goTo(link.to, link.at, link.dir);
   }
-  VILLAGERS.forEach(moveVillager);
+  if (!battle.active) VILLAGERS.forEach(moveVillager);
   if (!place) updateCamera();
   checkZone();
 }
 
 function drawWorld() {
+  if (battle.active && battle.phase !== "alert") return drawBattleScene();
   if (place) return drawRoomScene();
   const cx = Math.floor(cam.x), cy = Math.floor(cam.y);
   vctx.drawImage(world, -cx, -cy);
@@ -739,6 +968,7 @@ function drawWorld() {
       if (x1 > x0 && y1 > y0) vctx.drawImage(world, x0, y0, x1 - x0, y1 - y0, x0 - cx, y0 - cy, x1 - x0, y1 - y0);
     }
   }
+  for (const l of leaves) rect(vctx, l.life % 2 ? "#59cf62" : "#2e8b3a", Math.round(l.x - cx), Math.round(l.y - cy), 2, 2);   // les feuilles qui s'envolent
   const base = vctx.globalAlpha;                                          // la fumée de la cheminée
   for (const p of smoke) {
     vctx.globalAlpha = base * (p.life / 90) * 0.55;
@@ -782,13 +1012,13 @@ function draw() {
   ctx.imageSmoothingEnabled = false;
   const fx = started && !place ? cam.x - Math.floor(cam.x) : 0, fy = started && !place ? cam.y - Math.floor(cam.y) : 0;
   ctx.drawImage(view, -fx * 4, -fy * 4, (VIEW_W + 1) * 4, (VIEW_H + 1) * 4);   // on agrandit x4, décalé de la partie fine du mouvement
-  drawTitle(); drawBanner(); drawDialog(); drawFade();
+  drawTitle(); drawBanner(); drawDialog(); drawHud(); drawBattleHud(); drawFlash(); drawFade();
 }
 
 // le panneau de bois qui annonce le nom de la maison : il glisse depuis le haut, reste deux secondes, puis remonte
 const BANNER_FRAMES = 200;
 function drawBanner() {
-  if (banner.t > BANNER_FRAMES) return;
+  if (banner.t > BANNER_FRAMES || (battle.active && battle.phase !== "alert")) return;   // pas de bandeau pendant un combat
   const y = -80 + 112 * Math.min(1, banner.t / 18, (BANNER_FRAMES - banner.t) / 18);
   ctx.fillStyle = "#3a2210"; ctx.fillRect(250, y, 460, 70);
   ctx.fillStyle = "#7a4a22"; ctx.fillRect(256, y + 6, 448, 58);
@@ -824,6 +1054,11 @@ function drawFade() {
 
 // ---------- clavier ----------
 addEventListener("keydown", (e) => {
+  if (battle.active) {                                                  // pendant un combat, les lettres servent à taper le mot
+    e.preventDefault();
+    if (!e.repeat && /^[a-zA-Z]$/.test(e.key)) typeKey(e.key.toUpperCase());
+    return;
+  }
   if (MOVES[e.code]) { e.preventDefault(); if (!keys.includes(e.code)) keys.push(e.code); }   // les flèches ne font pas défiler la page
   if (e.repeat) return;
   if (e.code === "KeyM") return Sound.toggle();

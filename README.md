@@ -14,10 +14,11 @@ Regarde l'historique des commits pour suivre la construction du jeu depuis le d�
 | 3 | Le héros : sa création et ses déplacements | fait |
 | 4 | La maison du dev : dehors et dedans | fait |
 | 5 | Le labo OnyxBuild : trois salles, un prof et un robot | fait |
+| 6 | Les créatures sauvages : des combats éclair | fait |
 
 ## Lancer le jeu
 
-Aucune installation : ouvre simplement `index.html` dans ton navigateur, puis appuie sur **Entrée** et déplace-toi avec les **flèches** (ou ZQSD). Avance contre une porte pour entrer, et appuie sur **Entrée** devant quelqu'un pour lui parler.
+Aucune installation : ouvre simplement `index.html` dans ton navigateur, puis appuie sur **Entrée** et déplace-toi avec les **flèches** (ou ZQSD). Avance contre une porte pour entrer, et appuie sur **Entrée** devant quelqu'un pour lui parler. Loin des chemins et des bâtiments, des créatures t'attendent : tape leur mot au clavier avant qu'elles ne t'attaquent !
 
 ## Fait par [OnyxBuild](https://github.com/OnyxBuild)
 
